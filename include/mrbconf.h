@@ -175,6 +175,8 @@
 # define MRB_USE_CXX_EXCEPTION
 #endif
 
+#include <mruby/unsupported_conf.h>
+
 /* end of configuration */
 
 #ifndef MRB_NO_STDIO
