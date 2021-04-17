@@ -35,16 +35,50 @@ module MRuby
       "[]=" => "aset",
     }.freeze
 
+    # The names are the shortest aliases from Ruby standard or English library.
+    SPECIAL_VARIABLES = {
+      '$!' => "error_info",
+      '$"' => "loaded_features",
+      '$$' => "pid",
+      '$&' => "match",
+      "$'" => "postmatch",
+      '$*' => "argv",
+      '$+' => "last_paren_match",
+      '$,' => "ofs",
+      '$.' => "nr",
+      '$/' => "rs",
+      '$:' => "load_path",
+      '$;' => "fs",
+      '$<' => "default_input",
+      '$=' => "ignorecase",
+      '$>' => "stdout",
+      '$?' => "child_status",
+      '$@' => "error_position",
+      '$\\' => "ors",
+      '$_' => "last_read_line",
+      '$`' => "prematch",
+      '$~' => "last_match_info",
+    }.freeze
+
     SYMBOL_TO_MACRO = {
     #      Symbol      =>      Macro
     # [prefix, suffix] => [prefix, suffix]
       ["@@"  , ""    ] => ["CV"  , ""    ],
       ["@"   , ""    ] => ["IV"  , ""    ],
+      ["$"   , ""    ] => ["GV"  , ""    ],
       [""    , "!"   ] => [""    , "_B"  ],
       [""    , "?"   ] => [""    , "_Q"  ],
       [""    , "="   ] => [""    , "_E"  ],
       [""    , ""    ] => [""    , ""    ],
     }.freeze
+
+    SYMBOL_RE = /
+      \A
+      (?<prefix>#{Regexp.union(*SYMBOL_TO_MACRO.keys.map(&:first).uniq)})?
+      (?<name>[\w&&\D]\w*)
+      (?<suffix>#{Regexp.union(*SYMBOL_TO_MACRO.keys.map(&:last).uniq)})?
+      \z
+    /x
 
     C_STR_LITERAL_RE = /"(?:[^\\\"]|\\.)*"/
 
@@ -54,7 +88,7 @@ module MRuby
 
     def scan(paths)
       presym_hash = {}
-      paths.each {|path| read_preprocessed(presym_hash, path)}
+      paths.each{|path| read_preprocessed(presym_hash, path)}
       presym_hash.keys.sort_by!{|sym| [c_literal_size(sym), sym]}
     end
 
@@ -68,17 +102,19 @@ module MRuby
     end
 
     def write_id_header(presyms)
-      prefix_re = Regexp.union(*SYMBOL_TO_MACRO.keys.map(&:first).uniq)
-      suffix_re = Regexp.union(*SYMBOL_TO_MACRO.keys.map(&:last).uniq)
-      sym_re = /\A(#{prefix_re})?([\w&&\D]\w*)(#{suffix_re})?\z/o
       _pp "GEN", id_header_path.relative_path
       File.open(id_header_path, "w:binary") do |f|
         f.puts "enum mruby_presym {"
         presyms.each.with_index(1) do |sym, num|
-          if sym_re =~ sym && (affixes = SYMBOL_TO_MACRO[[$1, $3]])
-            f.puts "  MRB_#{affixes * 'SYM'}__#{$2} = #{num},"
+          if SYMBOL_RE =~ sym
+            affixes = SYMBOL_TO_MACRO[[$~[:prefix], $~[:suffix]]]
+            f.puts "  MRB_#{affixes * 'SYM'}__#{$~[:name]} = #{num},"
+          elsif /\A\$(?<name>\d|[1-9]\d+)\z/ =~ sym  # $0, $1, etc
+            f.puts "  MRB_GVSYM__#{$~[:name]} = #{num},"
           elsif name = OPERATORS[sym]
             f.puts "  MRB_OPSYM__#{name} = #{num},"
+          elsif name = SPECIAL_VARIABLES[sym]
+            f.puts "  MRB_SVSYM__#{name} = #{num},"
           end
         end
         f.puts "};"

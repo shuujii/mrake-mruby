@@ -64,7 +64,7 @@ MRB_API mrb_bool mrb_const_defined_at(mrb_state *mrb, mrb_value mod, mrb_sym id)
  *
  *     !!!c
  *     // C style
- *     mrb_sym sym = mrb_intern_lit(mrb, "$value");
+ *     mrb_sym sym = MRB_GVSYM(value);
  *     mrb_value var = mrb_gv_get(mrb, sym);
  *
  * @param mrb The mruby state reference
@@ -84,7 +84,7 @@ MRB_API mrb_value mrb_gv_get(mrb_state *mrb, mrb_sym sym);
  *
  *     !!!c
  *     // C style
- *     mrb_sym sym = mrb_intern_lit(mrb, "$value");
+ *     mrb_sym sym = MRB_GVSYM(value);
  *     mrb_gv_set(mrb, sym, mrb_str_new_lit("foo"));
  *
  * @param mrb The mruby state reference
@@ -102,7 +102,7 @@ MRB_API void mrb_gv_set(mrb_state *mrb, mrb_sym sym, mrb_value val);
  *     $value = nil
  *
  *     // C style
- *     mrb_sym sym = mrb_intern_lit(mrb, "$value");
+ *     mrb_sym sym = MRB_GVSYM(value);
  *     mrb_gv_remove(mrb, sym);
  *
  * @param mrb The mruby state reference

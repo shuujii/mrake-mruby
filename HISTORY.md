@@ -1,2 +1,3 @@
 ## Next release (2021-??-??)
-  * Drop support for some configurations (714437ae)
+  * Drop support for some configurations (13e8647b)
+  * Presym macros support global/special variables

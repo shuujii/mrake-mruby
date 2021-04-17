@@ -1012,6 +1012,22 @@ sym_name_with_bang_p(const char *name, mrb_int len)
 }
 
 static mrb_bool
+sym_name_gvar_p(const char *name, mrb_int len)
+{
+  if (len < 2) return FALSE;
+  if (name[0] != '$') return FALSE;
+
+  /* $foo, $bar, etc. */
+  if (sym_name_word_p(name+1, len-1)) return TRUE;
+
+  /* $0, $1, etc. */
+  if (len > 2 && name[1] == '0') return FALSE;
+  for (int i = 1; i < len; i++) if (!ISDIGIT(name[i])) return FALSE;
+
+  return TRUE;
+}
+
+static mrb_bool
 sym_name_ivar_p(const char *name, mrb_int len)
 {
   return len >= 2 && name[0] == '@' && sym_name_word_p(name+1, len-1);
@@ -1023,61 +1039,83 @@ sym_name_cvar_p(const char *name, mrb_int len)
   return len >= 3 && name[0] == '@' && sym_name_ivar_p(name+1, len-1);
 }
 
-#define OPERATOR_SYMBOL(sym_name, name) {name, sym_name, sizeof(sym_name)-1}
-struct operator_symbol {
+#define SPECIAL_SYMBOL(sym_name, name) {name, sym_name, sizeof(sym_name)-1}
+struct special_symbol {
   const char *name;
   const char *sym_name;
   uint16_t sym_name_len;
 };
-static const struct operator_symbol operator_table[] = {
-  OPERATOR_SYMBOL("!", "not"),
-  OPERATOR_SYMBOL("%", "mod"),
-  OPERATOR_SYMBOL("&", "and"),
-  OPERATOR_SYMBOL("*", "mul"),
-  OPERATOR_SYMBOL("+", "add"),
-  OPERATOR_SYMBOL("-", "sub"),
-  OPERATOR_SYMBOL("/", "div"),
-  OPERATOR_SYMBOL("<", "lt"),
-  OPERATOR_SYMBOL(">", "gt"),
-  OPERATOR_SYMBOL("^", "xor"),
-  OPERATOR_SYMBOL("`", "tick"),
-  OPERATOR_SYMBOL("|", "or"),
-  OPERATOR_SYMBOL("~", "neg"),
-  OPERATOR_SYMBOL("!=", "neq"),
-  OPERATOR_SYMBOL("!~", "nmatch"),
-  OPERATOR_SYMBOL("&&", "andand"),
-  OPERATOR_SYMBOL("**", "pow"),
-  OPERATOR_SYMBOL("+@", "plus"),
-  OPERATOR_SYMBOL("-@", "minus"),
-  OPERATOR_SYMBOL("<<", "lshift"),
-  OPERATOR_SYMBOL("<=", "le"),
-  OPERATOR_SYMBOL("==", "eq"),
-  OPERATOR_SYMBOL("=~", "match"),
-  OPERATOR_SYMBOL(">=", "ge"),
-  OPERATOR_SYMBOL(">>", "rshift"),
-  OPERATOR_SYMBOL("[]", "aref"),
-  OPERATOR_SYMBOL("||", "oror"),
-  OPERATOR_SYMBOL("<=>", "cmp"),
-  OPERATOR_SYMBOL("===", "eqq"),
-  OPERATOR_SYMBOL("[]=", "aset"),
+static const struct special_symbol special_variable_table[] = {
+  SPECIAL_SYMBOL("$!", "error_info"),
+  SPECIAL_SYMBOL("$\"", "loaded_features"),
+  SPECIAL_SYMBOL("$$", "pid"),
+  SPECIAL_SYMBOL("$&", "match"),
+  SPECIAL_SYMBOL("$'", "postmatch"),
+  SPECIAL_SYMBOL("$*", "argv"),
+  SPECIAL_SYMBOL("$+", "last_paren_match"),
+  SPECIAL_SYMBOL("$,", "ofs"),
+  SPECIAL_SYMBOL("$.", "nr"),
+  SPECIAL_SYMBOL("$/", "rs"),
+  SPECIAL_SYMBOL("$:", "load_path"),
+  SPECIAL_SYMBOL("$;", "fs"),
+  SPECIAL_SYMBOL("$<", "default_input"),
+  SPECIAL_SYMBOL("$=", "ignorecase"),
+  SPECIAL_SYMBOL("$>", "stdout"),
+  SPECIAL_SYMBOL("$?", "child_status"),
+  SPECIAL_SYMBOL("$@", "error_position"),
+  SPECIAL_SYMBOL("$\\", "ors"),
+  SPECIAL_SYMBOL("$_", "last_read_line"),
+  SPECIAL_SYMBOL("$`", "prematch"),
+  SPECIAL_SYMBOL("$~", "last_match_info"),
+};
+static const struct special_symbol operator_table[] = {
+  SPECIAL_SYMBOL("!", "not"),
+  SPECIAL_SYMBOL("%", "mod"),
+  SPECIAL_SYMBOL("&", "and"),
+  SPECIAL_SYMBOL("*", "mul"),
+  SPECIAL_SYMBOL("+", "add"),
+  SPECIAL_SYMBOL("-", "sub"),
+  SPECIAL_SYMBOL("/", "div"),
+  SPECIAL_SYMBOL("<", "lt"),
+  SPECIAL_SYMBOL(">", "gt"),
+  SPECIAL_SYMBOL("^", "xor"),
+  SPECIAL_SYMBOL("`", "tick"),
+  SPECIAL_SYMBOL("|", "or"),
+  SPECIAL_SYMBOL("~", "neg"),
+  SPECIAL_SYMBOL("!=", "neq"),
+  SPECIAL_SYMBOL("!~", "nmatch"),
+  SPECIAL_SYMBOL("&&", "andand"),
+  SPECIAL_SYMBOL("**", "pow"),
+  SPECIAL_SYMBOL("+@", "plus"),
+  SPECIAL_SYMBOL("-@", "minus"),
+  SPECIAL_SYMBOL("<<", "lshift"),
+  SPECIAL_SYMBOL("<=", "le"),
+  SPECIAL_SYMBOL("==", "eq"),
+  SPECIAL_SYMBOL("=~", "match"),
+  SPECIAL_SYMBOL(">=", "ge"),
+  SPECIAL_SYMBOL(">>", "rshift"),
+  SPECIAL_SYMBOL("[]", "aref"),
+  SPECIAL_SYMBOL("||", "oror"),
+  SPECIAL_SYMBOL("<=>", "cmp"),
+  SPECIAL_SYMBOL("===", "eqq"),
+  SPECIAL_SYMBOL("[]=", "aset"),
 };
 
 static const char*
-sym_operator_name(const char *sym_name, mrb_int len)
+sym_special_name(const struct special_symbol *table, size_t table_size, const char *sym_name, mrb_int len)
 {
-  mrb_sym table_size = sizeof(operator_table)/sizeof(struct operator_symbol);
-  if (operator_table[table_size-1].sym_name_len < len) return NULL;
+  if (table[table_size-1].sym_name_len < len) return NULL;
 
   mrb_sym start, idx;
   int cmp;
-  const struct operator_symbol *op_sym;
+  const struct special_symbol *sp_sym;
   for (start = 0; table_size != 0; table_size/=2) {
     idx = start+table_size/2;
-    op_sym = &operator_table[idx];
-    cmp = (int)len-(int)op_sym->sym_name_len;
+    sp_sym = &table[idx];
+    cmp = (int)len-(int)sp_sym->sym_name_len;
     if (cmp == 0) {
-      cmp = memcmp(sym_name, op_sym->sym_name, len);
-      if (cmp == 0) return op_sym->name;
+      cmp = memcmp(sym_name, sp_sym->sym_name, len);
+      if (cmp == 0) return sp_sym->name;
     }
     if (0 < cmp) {
       start = ++idx;
@@ -1085,6 +1123,20 @@ sym_operator_name(const char *sym_name, mrb_int len)
     }
   }
   return NULL;
+}
+
+static const char*
+sym_special_variable_name(const char *sym_name, mrb_int len)
+{
+  size_t table_size = mrb_countof(special_variable_table);
+  return sym_special_name(special_variable_table, table_size, sym_name, len);
+}
+
+static const char*
+sym_operator_name(const char *sym_name, mrb_int len)
+{
+  size_t table_size = mrb_countof(operator_table);
+  return sym_special_name(operator_table, table_size, sym_name, len);
 }
 
 static const char*
@@ -1106,7 +1158,7 @@ dump_sym(mrb_state *mrb, mrb_sym sym, const char *var_name, int idx, mrb_value i
   if (sym == 0) return MRB_DUMP_INVALID_ARGUMENT;
 
   mrb_int len;
-  const char *name = mrb_sym_name_len(mrb, sym, &len), *op_name;
+  const char *name = mrb_sym_name_len(mrb, sym, &len), *sv_name, *op_name;
   if (!name) return MRB_DUMP_INVALID_ARGUMENT;
   if (sym_name_word_p(name, len)) {
     fprintf(fp, "MRB_SYM(%s)", name);
@@ -1120,11 +1172,17 @@ dump_sym(mrb_state *mrb, mrb_sym sym, const char *var_name, int idx, mrb_value i
   else if (sym_name_with_bang_p(name, len)) {
     fprintf(fp, "MRB_SYM_B(%.*s)", (int)(len-1), name);
   }
+  else if (sym_name_gvar_p(name, len)) {
+    fprintf(fp, "MRB_GVSYM(%s)", name+1);
+  }
   else if (sym_name_ivar_p(name, len)) {
     fprintf(fp, "MRB_IVSYM(%s)", name+1);
   }
   else if (sym_name_cvar_p(name, len)) {
     fprintf(fp, "MRB_CVSYM(%s)", name+2);
+  }
+  else if ((sv_name = sym_special_variable_name(name, len))) {
+    fprintf(fp, "MRB_SVSYM(%s)", sv_name);
   }
   else if ((op_name = sym_operator_name(name, len))) {
     fprintf(fp, "MRB_OPSYM(%s)", op_name);

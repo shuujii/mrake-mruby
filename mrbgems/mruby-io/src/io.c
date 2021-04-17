@@ -114,7 +114,7 @@ io_set_process_status(mrb_state *mrb, pid_t pid, int status)
   } else {
     v = mrb_fixnum_value(WEXITSTATUS(status));
   }
-  mrb_gv_set(mrb, mrb_intern_lit(mrb, "$?"), v);
+  mrb_gv_set(mrb, MRB_SVSYM(child_status), v);
 }
 
 static int

@@ -488,7 +488,7 @@ main(int argc, char **argv)
     }
   }
   mrb_define_global_const(mrb, "ARGV", ARGV);
-  mrb_gv_set(mrb, mrb_intern_lit(mrb, "$DEBUG"), mrb_bool_value(args.debug));
+  mrb_gv_set(mrb, MRB_GVSYM(DEBUG), mrb_bool_value(args.debug));
 
 #ifdef MRB_USE_READLINE
   history_path = get_history_path(mrb);

@@ -11,6 +11,7 @@
 #include <mruby/dump.h>
 #include <mruby/variable.h>
 #include <mruby/proc.h>
+#include <mruby/presym.h>
 
 #if defined(_WIN32) || defined(_WIN64)
 # include <io.h> /* for setmode */
@@ -295,7 +296,7 @@ main(int argc, char **argv)
       }
     }
     mrb_define_global_const(mrb, "ARGV", ARGV);
-    mrb_gv_set(mrb, mrb_intern_lit(mrb, "$DEBUG"), mrb_bool_value(args.debug));
+    mrb_gv_set(mrb, MRB_GVSYM(DEBUG), mrb_bool_value(args.debug));
 
     c = mrbc_context_new(mrb);
     if (args.verbose)
@@ -304,7 +305,7 @@ main(int argc, char **argv)
       c->no_exec = TRUE;
 
     /* Set $0 */
-    zero_sym = mrb_intern_lit(mrb, "$0");
+    zero_sym = MRB_GVSYM(0);
     if (args.rfp) {
       const char *cmdline;
       cmdline = args.cmdline ? args.cmdline : "-";

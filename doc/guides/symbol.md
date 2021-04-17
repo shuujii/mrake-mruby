@@ -57,18 +57,21 @@ To save RAM, `mruby` can use compile-time allocation of some symbols. You can
 use following macros to get preallocated symbols by including `mruby/presym.h`
 header.
 
- * `MRB_SYM(xor)`    //=> xor    (Word characters)
- * `MRB_SYM_B(xor)`  //=> xor!   (Method with Bang)
- * `MRB_SYM_Q(xor)`  //=> xor?   (Method with Question mark)
- * `MRB_SYM_E(xor)`  //=> xor=   (Method with Equal)
- * `MRB_CVSYM(xor)`  //=> @@xor  (Class Variable)
- * `MRB_IVSYM(xor)`  //=> @xor   (Instance Variable)
- * `MRB_OPSYM(xor)`  //=> ^      (Operator)
+ * `MRB_SYM(xor)`                    //=> xor       (Word characters)
+ * `MRB_SYM_B(xor)`                  //=> xor!      (Method with Bang)
+ * `MRB_SYM_Q(xor)`                  //=> xor?      (Method with Question mark)
+ * `MRB_SYM_E(xor)`                  //=> xor=      (Method with Equal)
+ * `MRB_GVSYM(xor)`, `MRB_GVSYM(1)`  //=> $xor, $1  (Global Variable)
+ * `MRB_CVSYM(xor)`                  //=> @@xor     (Class Variable)
+ * `MRB_IVSYM(xor)`                  //=> @xor      (Instance Variable)
+ * `MRB_SVSYM(argv)`                 //=> $*        (Special Variable)
+ * `MRB_OPSYM(xor)`                  //=> ^         (Operator)
 
-For `MRB_OPSYM()`, specify the names corresponding to operators (see
-`MRuby::Presym::OPERATORS` in `lib/mruby/presym.rb` for the names that
-can be specified for it). Other than that, describe only word characters
-excluding leading and ending punctuations.
+For `MRB_OPSYM` and `MRB_SVSYM`, specify the names corresponding to
+operators and special variables (see `MRuby::Presym::OPERATORS` and
+`MRuby::Presym::SPECIAL_VARIABLES` in `lib/mruby/presym.rb` for the names
+that can be specified for them). Other than that, describe only word
+characters excluding leading and ending punctuations.
 
 These macros are converted to static symbol IDs at compile time, unless
 preallocate symbols are disabled by  `conf.disable_presym`. In that case,

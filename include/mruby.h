@@ -1408,6 +1408,8 @@ MRB_API void mrb_show_copyright(mrb_state *mrb);
 
 MRB_API mrb_value mrb_format(mrb_state *mrb, const char *format, ...);
 
+#define mrb_countof(array) (sizeof(array) / sizeof(array[0]))
+
 #ifdef MRB_PRESYM_SCANNING
 # include <mruby/presym/scanning.h>
 #endif
