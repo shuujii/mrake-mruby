@@ -104,14 +104,14 @@ module MRuby
       File.open(id_header_path, "w:binary") do |f|
         f.puts "enum mruby_presym {"
         presyms.each.with_index(1) do |sym, num|
-          if SYMBOL_RE =~ sym
-            affixes = SYMBOL_TO_MACRO[[$~[:prefix], $~[:suffix]]]
-            f.puts "  MRB_#{affixes * 'SYM'}__#{$~[:name]} = #{num},"
-          elsif /\A\$(?<name>\d|[1-9]\d+)\z/ =~ sym  # $0, $1, etc
-            f.puts "  MRB_GVSYM__#{$~[:name]} = #{num},"
-          elsif name = OPERATORS[sym]
+          if (m = SYMBOL_RE.match(sym))
+            affixes = SYMBOL_TO_MACRO[[m[:prefix], m[:suffix]]]
+            f.puts "  MRB_#{affixes * 'SYM'}__#{m[:name]} = #{num},"
+          elsif (/\A\$(?<name>\d|[1-9]\d+)\z/.match(sym))  # $0, $1, etc
+            f.puts "  MRB_GVSYM__#{m[:name]} = #{num},"
+          elsif (name = OPERATORS[sym])
             f.puts "  MRB_OPSYM__#{name} = #{num},"
-          elsif name = SPECIAL_VARIABLES[sym]
+          elsif (name = SPECIAL_VARIABLES[sym])
             f.puts "  MRB_SVSYM__#{name} = #{num},"
           end
         end
