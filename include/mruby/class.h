@@ -17,7 +17,7 @@ MRB_BEGIN_DECL
 struct RClass {
   MRB_OBJECT_HEADER;
   union {
-    struct iv_tbl *iv;
+    struct mrb_smap *iv;
     struct RClass *iv_c;
   };
   struct mt_tbl *mt;

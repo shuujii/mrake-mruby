@@ -234,7 +234,7 @@ typedef struct mrb_state {
 
   struct mrb_context *c;
   struct mrb_context *root_c;
-  struct iv_tbl *globals;                 /* global variable table */
+  struct mrb_smap *globals;               /* global variable table */
 
   struct RObject *exc;                    /* exception */
 

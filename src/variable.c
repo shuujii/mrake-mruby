@@ -8,317 +8,10 @@
 #include <mruby/array.h>
 #include <mruby/class.h>
 #include <mruby/proc.h>
+#include <mruby/smap.h>
 #include <mruby/string.h>
 #include <mruby/variable.h>
 #include <mruby/presym.h>
-
-/*
- * Instance variable table structure
- *
- * Layout:
- *                                           iv_tbl* --.
- *                                                      \
- *           +---------+---------+---+-------+-------+---o--------+--------+
- *   Type    |mrb_value|mrb_value|...|mrb_sym|mrb_sym|...|uint16_t|uint16_t|
- *           +---------+---------+---+-------+-------+---+--------+--------+
- *   Content |  val 1  |  val 2  |...| sym 1 | sym 2 |...|  size  | capa_1 |
- *           +---------+---------+---+-------+-------+---+--------+--------+
- *
- *   - Only `val` and only `sym` are contiguous to eliminate structure padding.
- *   - `val` is placed at the beginning to align it at 8-byte boundary.
- *   - `capa_1` means "capacity - 1".
- */
-typedef struct iv_tbl {
-  uint16_t size;
-  uint16_t capa_1;
-} iv_tbl;
-
-typedef struct iv_tbl_iter {
-  mrb_sym *syms;
-  mrb_value *vals;
-  uint16_t idx;
-  uint16_t mask;
-} iv_tbl_iter;
-
-#define IV_INIT_CAPA 1
-#define IV_MAX_CAPA (U32(UINT16_MAX) + 1)
-#define IV_MAX_SIZE UINT16_MAX
-#define IV_EMPTY_SYM UINT32_MAX
-#define IV_DELETED_SYM (IV_EMPTY_SYM - 1)
-
-#define U16(v) ((uint16_t)(v))
-#define U32(v) ((uint32_t)(v))
-
-#define sym_hash_code(sym) U32((sym) ^ ((sym) << 2) ^ ((sym) >> 2))
-#define iv_syms(t) ((mrb_sym*)((char *)(t) - sizeof(mrb_sym) * iv_capa(t)))
-#define iv_vals(t) ((mrb_value*)((char *)(t) - iv_offset_for(iv_capa(t))))
-
-#define iv_each_by_hash_code(t, hash_code, it_var, code) do {                 \
-  uint32_t capa__ = iv_capa(t);                                               \
-  iv_tbl_iter it_var[1];                                                      \
-  iv_it_init_by_hash_code(it_var, t, hash_code);                              \
-  for (; capa__; iv_it_next_by_hash_code(it_var), --capa__) {                 \
-    code;                                                                     \
-  }                                                                           \
-} while (0)
-
-#define iv_cycle(t, it_var, code) do {                                        \
-  iv_tbl_iter it_var[1];                                                      \
-  iv_it_init(it_var, t);                                                      \
-  for (; TRUE; iv_it_next(it_var)) {                                          \
-    code;                                                                     \
-  }                                                                           \
-} while (0)
-
-static size_t iv_offset_for(uint32_t capa);
-static uint32_t iv_capa(const iv_tbl *t);
-
-static uint16_t
-iv_it_idx_for(const iv_tbl_iter *it, uint32_t v)
-{
-  return v & it->mask;
-}
-
-static void
-iv_it_init(iv_tbl_iter *it, iv_tbl *t)
-{
-  it->syms = iv_syms(t);
-  it->vals = iv_vals(t);
-  it->idx = 0;
-}
-
-static void
-iv_it_init_by_hash_code(iv_tbl_iter *it, iv_tbl *t, uint32_t hash_code)
-{
-  it->mask = t->capa_1;
-  it->syms = iv_syms(t);
-  it->vals = iv_vals(t);
-  it->idx = iv_it_idx_for(it, hash_code);
-}
-
-static void
-iv_it_next(iv_tbl_iter *it)
-{
-  ++it->idx;
-}
-
-static void
-iv_it_next_by_hash_code(iv_tbl_iter *it)
-{
-  it->idx = iv_it_idx_for(it, it->idx + 1);
-}
-
-static mrb_sym
-iv_it_sym(const iv_tbl_iter *it)
-{
-  return it->syms[it->idx];
-}
-
-static mrb_value
-iv_it_val(const iv_tbl_iter *it)
-{
-  return it->vals[it->idx];
-}
-
-static mrb_bool
-iv_it_empty_p(const iv_tbl_iter *it)
-{
-  return iv_it_sym(it) == IV_EMPTY_SYM;
-}
-
-static mrb_bool
-iv_it_active_p(const iv_tbl_iter *it)
-{
-  return iv_it_sym(it) < IV_DELETED_SYM;
-}
-
-static void
-iv_it_set_val(iv_tbl_iter *it, mrb_value val)
-{
-  it->vals[it->idx] = val;
-}
-
-static void
-iv_it_set(iv_tbl_iter *it, mrb_sym sym, mrb_value val)
-{
-  it->syms[it->idx] = sym;
-  it->vals[it->idx] = val;
-}
-
-static void
-iv_it_delete(iv_tbl_iter *it)
-{
-  it->syms[it->idx] = IV_DELETED_SYM;
-}
-
-static size_t
-iv_offset_for(uint32_t capa)
-{
-  return (sizeof(mrb_value) + sizeof(mrb_sym)) * capa;
-}
-
-static size_t
-iv_byte_size_for(uint32_t capa)
-{
-  return iv_offset_for(capa) + sizeof(uint16_t) * 2;
-}
-
-static uint16_t
-iv_size(const iv_tbl *t)
-{
-  return t->size;
-}
-
-static void
-iv_set_size(iv_tbl *t, uint16_t size)
-{
-  t->size = size;
-}
-
-static uint32_t
-iv_capa(const iv_tbl *t)
-{
-  return U32(t->capa_1) + 1;
-}
-
-static void
-iv_set_capa(iv_tbl *t, uint32_t capa)
-{
-  t->capa_1 = U16(capa - 1);
-}
-
-static iv_tbl*
-iv_new(mrb_state *mrb, uint32_t capa)
-{
-  iv_tbl *t = (iv_tbl*)((char *)mrb_malloc(mrb, iv_byte_size_for(capa)) + iv_offset_for(capa));
-  iv_set_size(t, 0);
-  iv_set_capa(t, capa);
-  memset(iv_syms(t), 0xff, sizeof(mrb_sym) * capa);
-  return t;
-}
-
-static void
-iv_expand(mrb_state *mrb, iv_tbl **tp)
-{
-  iv_tbl *t = *tp;
-  uint32_t capa = iv_capa(t), new_capa = capa * 2;
-  mrb_assert(capa < IV_MAX_CAPA);
-  mrb_assert(capa == iv_size(t));
-  iv_tbl *new_t = iv_new(mrb, new_capa);
-  iv_set_size(new_t, iv_size(t));
-  iv_set_capa(new_t, new_capa);
-  iv_cycle(t, it, {
-    mrb_assert(iv_it_active_p(it));
-    mrb_sym sym = iv_it_sym(it);
-    iv_each_by_hash_code(new_t, sym_hash_code(sym), new_it, {
-      if (!iv_it_empty_p(new_it)) continue;
-      iv_it_set(new_it, sym, iv_it_val(it));
-      break;
-    });
-    if (!--capa) break;
-  });
-  mrb_free(mrb, iv_vals(t));
-  *tp = new_t;
-}
-
-/* Free memory of the instance variable table. */
-static void
-iv_free(mrb_state *mrb, iv_tbl *t)
-{
-  if (t) mrb_free(mrb, iv_vals(t));
-}
-
-/* Set the value for the symbol in the instance variable table. */
-static void
-iv_put(mrb_state *mrb, iv_tbl **tp, mrb_sym sym, mrb_value val)
-{
-  if (!*tp) {
-    *tp = iv_new(mrb, IV_INIT_CAPA);
-    if (IV_INIT_CAPA == 1) {
-      iv_syms(*tp)[0] = sym;
-      iv_vals(*tp)[0] = val;
-      iv_set_size(*tp, 1);
-      return;
-    }
-  }
-  uint16_t size = iv_size(*tp);
-  uint32_t hash_code = sym_hash_code(sym);
-  iv_each_by_hash_code(*tp, hash_code, it, {
-    if (iv_it_sym(it) == sym) {
-      iv_it_set_val(it, val);
-      return;
-    }
-    if (!iv_it_active_p(it)) {
-      if (size == IV_MAX_SIZE) mrb_raise(mrb, E_ARGUMENT_ERROR, "iv_tbl too big");
-      iv_it_set(it, sym, val);
-      iv_set_size(*tp, ++size);
-      return;
-    }
-  });
-  iv_expand(mrb, tp);
-  iv_each_by_hash_code(*tp, hash_code, it, {
-    if (!iv_it_empty_p(it)) continue;
-    iv_it_set(it, sym, val);
-    iv_set_size(*tp, ++size);
-    return;
-  });
-  mrb_assert("not reached");
-}
-
-/* Get a value for a symbol from the instance variable table. */
-static mrb_bool
-iv_get(const iv_tbl *t, mrb_sym sym, mrb_value *valp)
-{
-  if (!t) return FALSE;
-  iv_each_by_hash_code((iv_tbl*)t, sym_hash_code(sym), it, {
-    if (iv_it_empty_p(it)) return FALSE;
-    if (iv_it_sym(it) != sym) continue;
-    if (valp) *valp = iv_it_val(it);
-    return TRUE;
-  });
-  return FALSE;
-}
-
-/* Deletes the value for the symbol from the instance variable table. */
-static mrb_bool
-iv_del(iv_tbl *t, mrb_sym sym, mrb_value *valp)
-{
-  if (!t) return FALSE;
-  iv_each_by_hash_code(t, sym_hash_code(sym), it, {
-    if (iv_it_empty_p(it)) return FALSE;
-    if (iv_it_sym(it) != sym) continue;
-    if (valp) *valp = iv_it_val(it);
-    iv_it_delete(it);
-    iv_set_size(t, iv_size(t) - 1);
-    return TRUE;
-  });
-  return FALSE;
-}
-
-/* Iterates over the instance variable table. */
-static void
-iv_foreach(mrb_state *mrb, iv_tbl *t, mrb_iv_foreach_func *func, void *data)
-{
-  uint16_t size;
-  if (!t || (size = iv_size(t)) == 0) return;
-  iv_cycle(t, it, {
-    if (!iv_it_active_p(it)) continue;
-    if (func(mrb, iv_it_sym(it), iv_it_val(it), data) != 0) return;
-    if (!--size) return;
-  });
-}
-
-/* Copy the instance variable table. */
-static iv_tbl*
-iv_copy(mrb_state *mrb, const iv_tbl *t)
-{
-  if (!t) return NULL;
-  uint32_t capa = iv_capa(t);
-  size_t byte_size = iv_byte_size_for(capa);
-  void *p = mrb_malloc(mrb, byte_size);
-  memcpy(p, iv_vals(t), byte_size);
-  return (iv_tbl*)((char *)p + iv_offset_for(capa));
-}
 
 static int
 iv_mark_i(mrb_state *mrb, mrb_sym sym, mrb_value v, void *p)
@@ -328,9 +21,9 @@ iv_mark_i(mrb_state *mrb, mrb_sym sym, mrb_value v, void *p)
 }
 
 static void
-mark_tbl(mrb_state *mrb, iv_tbl *t)
+mark_tbl(mrb_state *mrb, mrb_smap *t)
 {
-  iv_foreach(mrb, t, iv_mark_i, 0);
+  mrb_smap_each(mrb, t, iv_mark_i, 0);
 }
 
 void
@@ -342,7 +35,7 @@ mrb_gc_mark_gv(mrb_state *mrb)
 void
 mrb_gc_free_gv(mrb_state *mrb)
 {
-  iv_free(mrb, mrb->globals);
+  mrb_smap_free(mrb, mrb->globals);
 }
 
 void
@@ -354,13 +47,13 @@ mrb_gc_mark_iv(mrb_state *mrb, struct RObject *obj)
 size_t
 mrb_gc_mark_iv_size(mrb_state *mrb, struct RObject *obj)
 {
-  return obj->iv ? iv_size(obj->iv) : 0;
+  return mrb_smap_size(obj->iv);
 }
 
 void
 mrb_gc_free_iv(mrb_state *mrb, struct RObject *obj)
 {
-  iv_free(mrb, obj->iv);
+  mrb_smap_free(mrb, obj->iv);
 }
 
 mrb_value
@@ -391,7 +84,7 @@ obj_iv_p(mrb_value obj)
   }
 }
 
-static iv_tbl**
+static mrb_smap**
 class_iv_ptr(struct RClass *c)
 {
   return c->tt == MRB_TT_ICLASS ? &c->iv_c->iv : &c->iv;
@@ -402,7 +95,7 @@ mrb_obj_iv_get(mrb_state *mrb, struct RObject *obj, mrb_sym sym)
 {
   mrb_value v;
 
-  if (iv_get(obj->iv, sym, &v))
+  if (mrb_smap_get(obj->iv, sym, &v))
     return v;
   return mrb_nil_value();
 }
@@ -422,7 +115,7 @@ void
 mrb_obj_iv_set_force(mrb_state *mrb, struct RObject *obj, mrb_sym sym, mrb_value v)
 {
   assign_class_name(mrb, obj, sym, v);
-  iv_put(mrb, &obj->iv, sym, v);
+  mrb_smap_set(mrb, &obj->iv, sym, v);
   mrb_field_write_barrier_value(mrb, (struct RBasic*)obj, v);
 }
 
@@ -438,7 +131,7 @@ MRB_API void
 mrb_iv_foreach(mrb_state *mrb, mrb_value obj, mrb_iv_foreach_func *func, void *p)
 {
   if (!obj_iv_p(obj)) return;
-  iv_foreach(mrb, mrb_obj_ptr(obj)->iv, func, p);
+  mrb_smap_each(mrb, mrb_obj_ptr(obj)->iv, func, p);
 }
 
 static inline mrb_bool
@@ -487,7 +180,7 @@ mrb_iv_set(mrb_state *mrb, mrb_value obj, mrb_sym sym, mrb_value v)
 MRB_API mrb_bool
 mrb_obj_iv_defined(mrb_state *mrb, struct RObject *obj, mrb_sym sym)
 {
-  return iv_get(obj->iv, sym, NULL);
+  return mrb_smap_get(obj->iv, sym, NULL);
 }
 
 MRB_API mrb_bool
@@ -524,8 +217,8 @@ mrb_iv_copy(mrb_state *mrb, mrb_value dest, mrb_value src)
   struct RObject *d = mrb_obj_ptr(dest);
   struct RObject *s = mrb_obj_ptr(src);
 
-  iv_tbl *t = iv_copy(mrb, s->iv);
-  iv_free(mrb, d->iv);
+  mrb_smap *t = mrb_smap_copy(mrb, s->iv);
+  mrb_smap_free(mrb, d->iv);
   if (t) mrb_write_barrier(mrb, (struct RBasic*)d);
   d->iv = t;
 }
@@ -563,9 +256,7 @@ inspect_i(mrb_state *mrb, mrb_sym sym, mrb_value v, void *p)
 mrb_value
 mrb_obj_iv_inspect(mrb_state *mrb, struct RObject *obj)
 {
-  iv_tbl *t = obj->iv;
-
-  if (t && iv_size(t) > 0) {
+  if (mrb_smap_size(obj->iv) > 0) {
     const char *cn = mrb_obj_classname(mrb, mrb_obj_value(obj));
     mrb_value str = mrb_str_new_capa(mrb, 30);
 
@@ -574,7 +265,7 @@ mrb_obj_iv_inspect(mrb_state *mrb, struct RObject *obj)
     mrb_str_cat_lit(mrb, str, ":");
     mrb_str_cat_str(mrb, str, mrb_ptr_to_str(mrb, obj));
 
-    iv_foreach(mrb, t, inspect_i, &str);
+    mrb_smap_each(mrb, obj->iv, inspect_i, &str);
     mrb_str_cat_lit(mrb, str, ">");
     return str;
   }
@@ -585,11 +276,9 @@ MRB_API mrb_value
 mrb_iv_remove(mrb_state *mrb, mrb_value obj, mrb_sym sym)
 {
   if (obj_iv_p(obj)) {
-    iv_tbl *t = mrb_obj_ptr(obj)->iv;
     mrb_value val;
-
     mrb_check_frozen(mrb, mrb_obj_ptr(obj));
-    if (iv_del(t, sym, &val)) {
+    if (mrb_smap_delete(mrb_obj_ptr(obj)->iv, sym, &val)) {
       return val;
     }
   }
@@ -635,7 +324,7 @@ mrb_obj_instance_variables(mrb_state *mrb, mrb_value self)
 
   ary = mrb_ary_new(mrb);
   if (obj_iv_p(self)) {
-    iv_foreach(mrb, mrb_obj_ptr(self)->iv, iv_i, &ary);
+    mrb_smap_each(mrb, mrb_obj_ptr(self)->iv, iv_i, &ary);
   }
   return ary;
 }
@@ -681,10 +370,10 @@ mrb_mod_class_variables(mrb_state *mrb, mrb_value mod)
   mrb_get_args(mrb, "|b", &inherit);
   ary = mrb_ary_new(mrb);
   c = mrb_class_ptr(mod);
-  iv_foreach(mrb, c->iv, cv_i, &ary);
+  mrb_smap_each(mrb, c->iv, cv_i, &ary);
   if (inherit) {
     while ((c = c->super)) {
-      iv_foreach(mrb, *class_iv_ptr(c), cv_i, &ary);
+      mrb_smap_each(mrb, *class_iv_ptr(c), cv_i, &ary);
     }
   }
   return ary;
@@ -698,7 +387,7 @@ mrb_mod_cv_get(mrb_state *mrb, struct RClass *c, mrb_sym sym)
   int given = FALSE;
 
   do {
-    if (iv_get(*class_iv_ptr(c), sym, &v)) given = TRUE;
+    if (mrb_smap_get(*class_iv_ptr(c), sym, &v)) given = TRUE;
   } while ((c = c->super));
   if (given) return v;
   if (cls->tt == MRB_TT_SCLASS) {
@@ -708,7 +397,7 @@ mrb_mod_cv_get(mrb_state *mrb, struct RClass *c, mrb_sym sym)
     c = mrb_class_ptr(klass);
     if (c->tt == MRB_TT_CLASS || c->tt == MRB_TT_MODULE) {
       do {
-        if (iv_get(*class_iv_ptr(c), sym, &v)) given = TRUE;
+        if (mrb_smap_get(*class_iv_ptr(c), sym, &v)) given = TRUE;
       } while ((c = c->super));
       if (given) return v;
     }
@@ -730,10 +419,10 @@ mrb_mod_cv_set(mrb_state *mrb, struct RClass *c, mrb_sym sym, mrb_value v)
   struct RClass * cls = c;
 
   do {
-    iv_tbl **iv_ptr = class_iv_ptr(c);
-    if (iv_get(*iv_ptr, sym, NULL)) {
+    mrb_smap **iv_ptr = class_iv_ptr(c);
+    if (mrb_smap_get(*iv_ptr, sym, NULL)) {
       mrb_check_frozen(mrb, c);
-      iv_put(mrb, iv_ptr, sym, v);
+      mrb_smap_set(mrb, iv_ptr, sym, v);
       mrb_field_write_barrier_value(mrb, (struct RBasic*)c, v);
       return;
     }
@@ -759,7 +448,7 @@ mrb_mod_cv_set(mrb_state *mrb, struct RClass *c, mrb_sym sym, mrb_value v)
   }
 
   mrb_check_frozen(mrb, c);
-  iv_put(mrb, class_iv_ptr(c), sym, v);
+  mrb_smap_set(mrb, class_iv_ptr(c), sym, v);
   mrb_field_write_barrier_value(mrb, (struct RBasic*)c, v);
 }
 
@@ -773,7 +462,7 @@ mrb_bool
 mrb_mod_cv_defined(mrb_state *mrb, struct RClass * c, mrb_sym sym)
 {
   do {
-    if (iv_get(*class_iv_ptr(c), sym, NULL)) return TRUE;
+    if (mrb_smap_get(*class_iv_ptr(c), sym, NULL)) return TRUE;
   } while ((c = c->super));
 
   return FALSE;
@@ -838,7 +527,7 @@ const_get(mrb_state *mrb, struct RClass *base, mrb_sym sym)
 
 L_RETRY:
   do {
-    if (iv_get(*class_iv_ptr(c), sym, &v)) return v;
+    if (mrb_smap_get(*class_iv_ptr(c), sym, &v)) return v;
   } while ((c = c->super));
   if (!retry && base->tt == MRB_TT_MODULE) {
     c = mrb->object_class;
@@ -866,14 +555,14 @@ mrb_vm_const_get(mrb_state *mrb, mrb_sym sym)
 
   c = MRB_PROC_TARGET_CLASS(mrb->c->ci->proc);
   if (!c) c = mrb->object_class;
-  if (iv_get(c->iv, sym, &v)) {
+  if (mrb_smap_get(c->iv, sym, &v)) {
     return v;
   }
   c2 = c;
   while (c2 && c2->tt == MRB_TT_SCLASS) {
     mrb_value klass;
 
-    if (!iv_get(c2->iv, MRB_SYM(__attached__), &klass)) {
+    if (!mrb_smap_get(c2->iv, MRB_SYM(__attached__), &klass)) {
       c2 = NULL;
       break;
     }
@@ -884,7 +573,7 @@ mrb_vm_const_get(mrb_state *mrb, mrb_sym sym)
   proc = mrb->c->ci->proc;
   while (proc) {
     c2 = MRB_PROC_TARGET_CLASS(proc);
-    if (c2 && iv_get(c2->iv, sym, &v)) {
+    if (c2 && mrb_smap_get(c2->iv, sym, &v)) {
       return v;
     }
     proc = proc->upper;
@@ -976,10 +665,10 @@ mrb_mod_constants(mrb_state *mrb, mrb_value mod)
 
   mrb_get_args(mrb, "|b", &inherit);
   ary = mrb_ary_new(mrb);
-  iv_foreach(mrb, c->iv, const_i, &ary);
+  mrb_smap_each(mrb, c->iv, const_i, &ary);
   if (inherit) {
     while ((c = c->super) && c != mrb->object_class) {
-      iv_foreach(mrb, *class_iv_ptr(c), const_i, &ary);
+      mrb_smap_each(mrb, *class_iv_ptr(c), const_i, &ary);
     }
   }
   return ary;
@@ -990,7 +679,7 @@ mrb_gv_get(mrb_state *mrb, mrb_sym sym)
 {
   mrb_value v;
 
-  if (iv_get(mrb->globals, sym, &v))
+  if (mrb_smap_get(mrb->globals, sym, &v))
     return v;
   return mrb_nil_value();
 }
@@ -998,13 +687,13 @@ mrb_gv_get(mrb_state *mrb, mrb_sym sym)
 MRB_API void
 mrb_gv_set(mrb_state *mrb, mrb_sym sym, mrb_value v)
 {
-  iv_put(mrb, &mrb->globals, sym, v);
+  mrb_smap_set(mrb, &mrb->globals, sym, v);
 }
 
 MRB_API void
 mrb_gv_remove(mrb_state *mrb, mrb_sym sym)
 {
-  iv_del(mrb->globals, sym, NULL);
+  mrb_smap_delete(mrb->globals, sym, NULL);
 }
 
 static int
@@ -1030,10 +719,8 @@ gv_i(mrb_state *mrb, mrb_sym sym, mrb_value v, void *p)
 mrb_value
 mrb_f_global_variables(mrb_state *mrb, mrb_value self)
 {
-  iv_tbl *t = mrb->globals;
   mrb_value ary = mrb_ary_new(mrb);
-
-  iv_foreach(mrb, t, gv_i, &ary);
+  mrb_smap_each(mrb, mrb->globals, gv_i, &ary);
   return ary;
 }
 
@@ -1046,10 +733,10 @@ mrb_const_defined_0(mrb_state *mrb, mrb_value mod, mrb_sym id, mrb_bool exclude,
 
   tmp = klass;
 retry:
-  if (iv_get(tmp->iv, id, NULL)) return TRUE;
+  if (mrb_smap_get(tmp->iv, id, NULL)) return TRUE;
   if (recurse || klass == mrb->object_class) {
     while ((tmp = tmp->super)) {
-      if (iv_get(*class_iv_ptr(tmp), id, NULL)) return TRUE;
+      if (mrb_smap_get(*class_iv_ptr(tmp), id, NULL)) return TRUE;
     }
   }
   if (!exclude && !mod_retry && (klass->tt == MRB_TT_MODULE)) {
@@ -1105,7 +792,7 @@ find_class_sym(mrb_state *mrb, struct RClass *outer, struct RClass *c)
   if (outer == c) return 0;
   arg.c = c;
   arg.sym = 0;
-  iv_foreach(mrb, outer->iv, csym_i, &arg);
+  mrb_smap_each(mrb, outer->iv, csym_i, &arg);
   return arg.sym;
 }
 
@@ -1164,8 +851,8 @@ mrb_class_find_path(mrb_state *mrb, struct RClass *c)
   str = mrb_sym_name_len(mrb, name, &len);
   mrb_str_cat(mrb, path, str, len);
   if (RSTRING_PTR(path)[0] != '#') {
-    iv_del(c->iv, MRB_SYM(__outer__), NULL);
-    iv_put(mrb, &c->iv, MRB_SYM(__classname__), path);
+    mrb_smap_delete(c->iv, MRB_SYM(__outer__), NULL);
+    mrb_smap_set(mrb, &c->iv, MRB_SYM(__classname__), path);
     mrb_field_write_barrier_value(mrb, (struct RBasic*)c, path);
     path = mrb_str_dup(mrb, path);
   }
@@ -1175,9 +862,7 @@ mrb_class_find_path(mrb_state *mrb, struct RClass *c)
 size_t
 mrb_obj_iv_tbl_memsize(mrb_value obj)
 {
-  iv_tbl *t = mrb_obj_ptr(obj)->iv;
-  if (!t) return 0;
-  return iv_byte_size_for(iv_capa(t));
+  return mrb_smap_memsize(mrb_obj_ptr(obj)->iv);
 }
 
 #define identchar(c) (ISALNUM(c) || (c) == '_' || !ISASCII(c))

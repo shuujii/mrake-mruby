@@ -16,7 +16,7 @@ MRB_BEGIN_DECL
 
 struct RException {
   MRB_OBJECT_HEADER;
-  struct iv_tbl *iv;
+  struct mrb_smap *iv;
 };
 
 #define mrb_exc_ptr(v) ((struct RException*)mrb_ptr(v))

@@ -19,11 +19,11 @@ struct RHash {
   MRB_OBJECT_HEADER;
 #ifdef MRB_64BIT
   uint32_t size;
-  struct iv_tbl *iv;
+  struct mrb_smap *iv;
   uint32_t ea_capa;
   uint32_t ea_n_used;
 #else
-  struct iv_tbl *iv;
+  struct mrb_smap *iv;
   uint32_t size;
 #endif
   union {
