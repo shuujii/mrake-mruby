@@ -156,26 +156,24 @@ mrb_obj_id(mrb_value obj)
 MRB_API mrb_value
 mrb_word_boxing_float_value(mrb_state *mrb, mrb_float f)
 {
-  union mrb_value_ v;
-
-  v.p = mrb_obj_alloc(mrb, MRB_TT_FLOAT, mrb->float_class);
-  v.fp->f = f;
-  MRB_SET_FROZEN_FLAG(v.bp);
-  return v.value;
+  struct RFloat *o = (struct RFloat*)mrb_obj_alloc(mrb, MRB_TT_FLOAT, mrb->float_class);
+  o->f = f;
+  MRB_SET_FROZEN_FLAG(o);
+  return (mrb_value)o;
 }
 #endif  /* MRB_NO_FLOAT */
 
 MRB_API mrb_value
 mrb_word_boxing_int_value(mrb_state *mrb, mrb_int n)
 {
-  if (FIXABLE(n)) return mrb_fixnum_value(n);
+  if (FIXABLE(n)) {
+    return mrb_fixnum_value(n);
+  }
   else {
-    union mrb_value_ v;
-
-    v.p = mrb_obj_alloc(mrb, MRB_TT_INTEGER, mrb->integer_class);
-    v.ip->i = n;
-    MRB_SET_FROZEN_FLAG(v.ip);
-    return v.value;
+    struct RInteger *o = (struct RInteger*)mrb_obj_alloc(mrb, MRB_TT_INTEGER, mrb->integer_class);
+    o->i = n;
+    MRB_SET_FROZEN_FLAG(o);
+    return (mrb_value)o;
   }
 }
 #endif  /* MRB_WORD_BOXING */
@@ -184,12 +182,9 @@ mrb_word_boxing_int_value(mrb_state *mrb, mrb_int n)
 MRB_API mrb_value
 mrb_xxx_boxing_cptr_value(mrb_state *mrb, void *p)
 {
-  mrb_value v;
-  struct RCptr *cptr = (struct RCptr*)mrb_obj_alloc(mrb, MRB_TT_CPTR, mrb->object_class);
-
-  SET_OBJ_VALUE(v, cptr);
-  cptr->p = p;
-  return v;
+  struct RCptr *o = (struct RCptr*)mrb_obj_alloc(mrb, MRB_TT_CPTR, mrb->object_class);
+  o->p = p;
+  return (mrb_value)o;
 }
 #endif
 

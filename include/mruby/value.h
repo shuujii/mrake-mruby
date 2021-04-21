@@ -315,6 +315,7 @@ mrb_symbol_value(mrb_sym i)
   return v;
 }
 
+#ifndef MRB_WORD_BOXING
 MRB_INLINE mrb_value
 mrb_obj_value(void *p)
 {
@@ -373,6 +374,7 @@ mrb_undef_value(void)
   SET_UNDEF_VALUE(v);
   return v;
 }
+#endif  /* MRB_WORD_BOXING */
 
 #if defined(MRB_USE_ETEXT_EDATA) && !defined(MRB_USE_LINK_TIME_RO_DATA_P)
 # ifdef __GNUC__

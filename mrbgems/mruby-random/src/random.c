@@ -124,7 +124,7 @@ random_rand(mrb_state *mrb, rand_state *t, mrb_value max)
 {
   mrb_value value;
 
-  if (mrb_integer(max) == 0) {
+  if (mrb_nil_p(max) || mrb_integer(max) == 0) {
 #ifndef MRB_NO_FLOAT
     value = mrb_float_value(mrb, rand_real(t));
 #else

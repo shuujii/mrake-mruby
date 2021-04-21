@@ -20,18 +20,19 @@ mrb_obj_eq(mrb_state *mrb, mrb_value v1, mrb_value v2)
     return TRUE;
 
   case MRB_TT_FALSE:
+    return mrb_fixnum(v1) == mrb_fixnum(v2);
   case MRB_TT_INTEGER:
-    return (mrb_integer(v1) == mrb_integer(v2));
+    return mrb_integer(v1) == mrb_integer(v2);
   case MRB_TT_SYMBOL:
-    return (mrb_symbol(v1) == mrb_symbol(v2));
+    return mrb_symbol(v1) == mrb_symbol(v2);
 
 #ifndef MRB_NO_FLOAT
   case MRB_TT_FLOAT:
-    return (mrb_float(v1) == mrb_float(v2));
+    return mrb_float(v1) == mrb_float(v2);
 #endif
 
   default:
-    return (mrb_ptr(v1) == mrb_ptr(v2));
+    return mrb_ptr(v1) == mrb_ptr(v2);
   }
 }
 
