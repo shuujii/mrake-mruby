@@ -7,6 +7,8 @@
 ### Other Improvements
 
 * Reduce memory usage of instance variable tables (3ea62295)
+* Change type of `mrb_value` from struct to `uintptr_t` (c8291135)
+* Reduce memory usage of method tables
 
 ### Backwards Compatibility
 

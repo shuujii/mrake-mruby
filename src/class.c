@@ -16,278 +16,91 @@
 #include <mruby/error.h>
 #include <mruby/data.h>
 #include <mruby/istruct.h>
+#include <mruby/smap.h>
 #include <mruby/opcode.h>
 #include <mruby/presym.h>
 
-union mt_ptr {
-  struct RProc *proc;
-  mrb_func_t func;
-};
-
-struct mt_elem {
-  union mt_ptr ptr;
-  size_t func_p:1;
-  size_t noarg_p:1;
-  mrb_sym key:sizeof(mrb_sym)*8-2;
-};
-
-/* method table structure */
 typedef struct mt_tbl {
-  size_t size;
-  size_t alloc;
-  struct mt_elem *table;
+  mrb_smap *smap;
 } mt_tbl;
 
 /* Creates the method table. */
 static mt_tbl*
 mt_new(mrb_state *mrb)
 {
-  mt_tbl *t;
-
-  t = (mt_tbl*)mrb_malloc(mrb, sizeof(mt_tbl));
-  t->size = 0;
-  t->alloc = 0;
-  t->table = NULL;
-
-  return t;
+  mt_tbl *mt = (mt_tbl*)mrb_malloc(mrb, sizeof(mt_tbl));
+  mt->smap = NULL;
+  return mt;
 }
-
-static struct mt_elem *mt_put(mrb_state *mrb, mt_tbl *t, mrb_sym sym, size_t func_p, size_t noarg_p, union mt_ptr ptr);
-
-static void
-mt_rehash(mrb_state *mrb, mt_tbl *t)
-{
-  size_t old_alloc = t->alloc;
-  size_t new_alloc = old_alloc+1;
-  struct mt_elem *old_table = t->table;
-
-  khash_power2(new_alloc);
-  if (old_alloc == new_alloc) return;
-
-  t->alloc = new_alloc;
-  t->size = 0;
-  t->table = (struct mt_elem*)mrb_calloc(mrb, sizeof(struct mt_elem), new_alloc);
-
-  for (size_t i = 0; i < old_alloc; i++) {
-    struct mt_elem *slot = &old_table[i];
-
-    /* key = 0 means empty or deleted */
-    if (slot->key != 0) {
-      mt_put(mrb, t, slot->key, slot->func_p, slot->noarg_p, slot->ptr);
-    }
-  }
-  mrb_free(mrb, old_table);
-}
-
-#define slot_empty_p(slot) ((slot)->key == 0 && (slot)->func_p == 0)
 
 /* Set the value for the symbol in the method table. */
-static struct mt_elem*
-mt_put(mrb_state *mrb, mt_tbl *t, mrb_sym sym, size_t func_p, size_t noarg_p, union mt_ptr ptr)
+static void
+mt_put(mrb_state *mrb, mt_tbl *mt, mrb_sym sym, mrb_method_t m)
 {
-  size_t hash, pos, start;
-  struct mt_elem *dslot = NULL;
-
-  if (t->alloc == 0) {
-    mt_rehash(mrb, t);
-  }
-  hash = kh_int_hash_func(mrb, sym);
-  start = pos = hash & (t->alloc-1);
-  for (;;) {
-    struct mt_elem *slot = &t->table[pos];
-
-    if (slot->key == sym) {
-      slot->func_p = func_p;
-      slot->noarg_p = noarg_p;
-      slot->ptr = ptr;
-      return slot;
-    }
-    else if (slot->key == 0) {  /* empty or deleted */
-      if (slot->func_p == 0) {  /* empty */
-        t->size++;
-        slot->key = sym;
-        slot->func_p = func_p;
-        slot->noarg_p = noarg_p;
-        slot->ptr = ptr;
-        return slot;
-      }
-      else if (!dslot) {        /* deleted */
-        dslot = slot;
-      }
-    }
-    pos = (pos+1) & (t->alloc-1);
-    if (pos == start) {         /* not found */
-      if (dslot) {
-        t->size++;
-        dslot->key = sym;
-        dslot->func_p = func_p;
-        dslot->noarg_p = noarg_p;
-        dslot->ptr = ptr;
-        return dslot;
-      }
-      /* no room */
-      mt_rehash(mrb, t);
-      start = pos = hash & (t->alloc-1);
-    }
-  }
+  mrb_smap_set(mrb, &mt->smap, sym, m);
 }
 
 /* Get a value for a symbol from the method table. */
-static struct mt_elem*
-mt_get(mrb_state *mrb, mt_tbl *t, mrb_sym sym)
+static mrb_bool
+mt_get(const mt_tbl *mt, mrb_sym sym, mrb_method_t *mp)
 {
-  size_t hash, pos, start;
-
-  if (t == NULL) return NULL;
-  if (t->alloc == 0) return NULL;
-  if (t->size == 0) return NULL;
-
-  hash = kh_int_hash_func(mrb, sym);
-  start = pos = hash & (t->alloc-1);
-  for (;;) {
-    struct mt_elem *slot = &t->table[pos];
-
-    if (slot->key == sym) {
-      return slot;
-    }
-    else if (slot_empty_p(slot)) {
-      return NULL;
-    }
-    pos = (pos+1) & (t->alloc-1);
-    if (pos == start) {         /* not found */
-      return NULL;
-    }
-  }
+  return mrb_smap_get(mt->smap, sym, mp);
 }
 
 /* Deletes the value for the symbol from the method table. */
 static mrb_bool
-mt_del(mrb_state *mrb, mt_tbl *t, mrb_sym sym)
+mt_del(mrb_state *mrb, mt_tbl *mt, mrb_sym sym)
 {
-  size_t hash, pos, start;
-
-  if (t == NULL) return FALSE;
-  if (t->alloc == 0) return  FALSE;
-  if (t->size == 0) return FALSE;
-
-  hash = kh_int_hash_func(mrb, sym);
-  start = pos = hash & (t->alloc-1);
-  for (;;) {
-    struct mt_elem *slot = &t->table[pos];
-
-    if (slot->key == sym) {
-      t->size--;
-      slot->key = 0;
-      slot->func_p = 1;
-      return TRUE;
-    }
-    else if (slot_empty_p(slot)) {
-      return FALSE;
-    }
-    pos = (pos+1) & (t->alloc-1);
-    if (pos == start) {         /* not found */
-      return FALSE;
-    }
-  }
+  return mrb_smap_delete(mt->smap, sym, NULL);
 }
 
 /* Copy the method table. */
 static struct mt_tbl*
-mt_copy(mrb_state *mrb, mt_tbl *t)
+mt_copy(mrb_state *mrb, const mt_tbl *mt)
 {
-  mt_tbl *t2;
-  size_t i;
-
-  if (t == NULL) return NULL;
-  if (t->alloc == 0) return NULL;
-  if (t->size == 0) return NULL;
-
-  t2 = mt_new(mrb);
-  for (i=0; i<t->alloc; i++) {
-    struct mt_elem *slot = &t->table[i];
-
-    if (slot->key) {
-      mt_put(mrb, t2, slot->key, slot->func_p, slot->noarg_p, slot->ptr);
-    }
-  }
-  return t2;
+  mt_tbl *new_mt = mt_new(mrb);
+  new_mt->smap = mrb_smap_copy(mrb, mt->smap);
+  return new_mt;
 }
 
 /* Free memory of the method table. */
 static void
-mt_free(mrb_state *mrb, mt_tbl *t)
+mt_free(mrb_state *mrb, mt_tbl *mt)
 {
-  mrb_free(mrb, t->table);
-  mrb_free(mrb, t);
+  if (!mt) return;
+  mrb_smap_free(mrb, mt->smap);
+  mrb_free(mrb, mt);
 }
 
 MRB_API void
 mrb_mt_foreach(mrb_state *mrb, struct RClass *c, mrb_mt_foreach_func *fn, void *p)
 {
-  mt_tbl *t = c->mt;
-  size_t i;
+  if (c->mt) mrb_smap_each(mrb, c->mt->smap, fn, p);
+}
 
-  if (t == NULL) return;
-  if (t->alloc == 0) return;
-  if (t->size == 0) return;
-
-  for (i=0; i<t->alloc; i++) {
-    struct mt_elem *slot = &t->table[i];
-
-    if (slot->key) {
-      mrb_method_t m;
-
-      if (slot->func_p) {
-        MRB_METHOD_FROM_FUNC(m, slot->ptr.func);
-      }
-      else {
-        MRB_METHOD_FROM_PROC(m, slot->ptr.proc);
-      }
-      if (slot->noarg_p) {
-        MRB_METHOD_NOARG_SET(m);
-      }
-
-      if (fn(mrb, slot->key, m, p) != 0)
-        return;
-    }
-  }
-  return;
+static int
+gc_mark_mt_i(mrb_state *mrb, mrb_sym sym, mrb_method_t m, void *p)
+{
+  if (MRB_METHOD_PROC_P(m)) mrb_gc_mark(mrb, (struct RBasic*)MRB_METHOD_PROC(m));
+  return 0;
 }
 
 void
 mrb_gc_mark_mt(mrb_state *mrb, struct RClass *c)
 {
-  mt_tbl *t = c->mt;
-  size_t i;
-
-  if (t == NULL) return;
-  if (t->alloc == 0) return;
-  if (t->size == 0) return;
-
-  for (i=0; i<t->alloc; i++) {
-    struct mt_elem *slot = &t->table[i];
-
-    if (slot->key && !slot->func_p) { /* Proc pointer */
-      struct RProc *p = slot->ptr.proc;
-      mrb_gc_mark(mrb, (struct RBasic*)p);
-    }
-  }
-  return;
+  if (c->mt) mrb_smap_each(mrb, c->mt->smap, gc_mark_mt_i, NULL);
 }
 
 size_t
 mrb_gc_mark_mt_size(mrb_state *mrb, struct RClass *c)
 {
-  struct mt_tbl *h = c->mt;
-
-  if (!h) return 0;
-  return h->size;
+  return c->mt ? mrb_smap_size(c->mt->smap) : 0;
 }
 
 void
 mrb_gc_free_mt(mrb_state *mrb, struct RClass *c)
 {
-  if (c->mt) mt_free(mrb, c->mt);
+  mt_free(mrb, c->mt);
 }
 
 void
@@ -724,17 +537,11 @@ mrb_define_class_under(mrb_state *mrb, struct RClass *outer, const char *name, s
 MRB_API void
 mrb_define_method_raw(mrb_state *mrb, struct RClass *c, mrb_sym mid, mrb_method_t m)
 {
-  mt_tbl *h;
-  union mt_ptr ptr;
-
   MRB_CLASS_ORIGIN(c);
-  h = c->mt;
   mrb_check_frozen(mrb, c);
-  if (!h) h = c->mt = mt_new(mrb);
   if (MRB_METHOD_PROC_P(m)) {
     struct RProc *p = MRB_METHOD_PROC(m);
 
-    ptr.proc = p;
     if (p) {
       if (p->color != 7 /* GC_RED */) {
         p->flags |= MRB_PROC_SCOPE;
@@ -750,10 +557,8 @@ mrb_define_method_raw(mrb_state *mrb, struct RClass *c, mrb_sym mid, mrb_method_
       }
     }
   }
-  else {
-    ptr.func = MRB_METHOD_FUNC(m);
-  }
-  mt_put(mrb, h, mid, MRB_METHOD_FUNC_P(m), MRB_METHOD_NOARG_P(m), ptr);
+  if (!c->mt) c->mt = mt_new(mrb);
+  mt_put(mrb, c->mt, mid, m);
   mc_clear(mrb);
 }
 
@@ -1756,22 +1561,10 @@ mrb_method_search_vm(mrb_state *mrb, struct RClass **cp, mrb_sym mid)
 #endif
 
   while (c) {
-    mt_tbl *h = c->mt;
-
-    if (h) {
-      struct mt_elem *e = mt_get(mrb, h, mid);
-      if (e) {
-        if (e->ptr.proc == 0) break;
+    if (c->mt) {
+      if (mt_get(c->mt, mid, &m)) {
+        if (MRB_METHOD_UNDEF_P(m)) break;
         *cp = c;
-        if (e->func_p) {
-          MRB_METHOD_FROM_FUNC(m, e->ptr.func);
-        }
-        else {
-          MRB_METHOD_FROM_PROC(m, e->ptr.proc);
-        }
-        if (e->noarg_p) {
-          MRB_METHOD_NOARG_SET(m);
-        }
 #ifndef MRB_NO_METHOD_CACHE
         mc->c = oc;
         mc->c0 = c;
@@ -2326,12 +2119,8 @@ mrb_undef_class_method(mrb_state *mrb, struct RClass *c, const char *name)
 MRB_API void
 mrb_remove_method(mrb_state *mrb, struct RClass *c, mrb_sym mid)
 {
-  mt_tbl *h;
-
   MRB_CLASS_ORIGIN(c);
-  h = c->mt;
-
-  if (h && mt_del(mrb, h, mid)) return;
+  if (c->mt && mt_del(mrb, c->mt, mid)) return;
   mrb_name_error(mrb, mid, "method '%n' not defined in %C", mid, c);
 }
 
