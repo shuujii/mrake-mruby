@@ -107,7 +107,7 @@ module MRuby
           if (m = SYMBOL_RE.match(sym))
             affixes = SYMBOL_TO_MACRO[[m[:prefix], m[:suffix]]]
             f.puts "  MRB_#{affixes * 'SYM'}__#{m[:name]} = #{num},"
-          elsif (/\A\$(?<name>\d|[1-9]\d+)\z/.match(sym))  # $0, $1, etc
+          elsif (m = /\A\$(?<name>\d|[1-9]\d+)\z/.match(sym))  # $0, $1, etc
             f.puts "  MRB_GVSYM__#{m[:name]} = #{num},"
           elsif (name = OPERATORS[sym])
             f.puts "  MRB_OPSYM__#{name} = #{num},"
