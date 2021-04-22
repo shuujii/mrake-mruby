@@ -278,7 +278,7 @@ mrb_iv_remove(mrb_state *mrb, mrb_value obj, mrb_sym sym)
   if (obj_iv_p(obj)) {
     mrb_value val;
     mrb_check_frozen(mrb, mrb_obj_ptr(obj));
-    if (mrb_smap_delete(mrb_obj_ptr(obj)->iv, sym, &val)) {
+    if (mrb_smap_delete(mrb, &mrb_obj_ptr(obj)->iv, sym, &val)) {
       return val;
     }
   }
@@ -693,7 +693,7 @@ mrb_gv_set(mrb_state *mrb, mrb_sym sym, mrb_value v)
 MRB_API void
 mrb_gv_remove(mrb_state *mrb, mrb_sym sym)
 {
-  mrb_smap_delete(mrb->globals, sym, NULL);
+  mrb_smap_delete(mrb, &mrb->globals, sym, NULL);
 }
 
 static int
@@ -851,7 +851,7 @@ mrb_class_find_path(mrb_state *mrb, struct RClass *c)
   str = mrb_sym_name_len(mrb, name, &len);
   mrb_str_cat(mrb, path, str, len);
   if (RSTRING_PTR(path)[0] != '#') {
-    mrb_smap_delete(c->iv, MRB_SYM(__outer__), NULL);
+    mrb_smap_delete(mrb, &c->iv, MRB_SYM(__outer__), NULL);
     mrb_smap_set(mrb, &c->iv, MRB_SYM(__classname__), path);
     mrb_field_write_barrier_value(mrb, (struct RBasic*)c, path);
     path = mrb_str_dup(mrb, path);

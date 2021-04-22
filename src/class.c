@@ -51,7 +51,7 @@ mt_get(const mt_tbl *mt, mrb_sym sym, mrb_method_t *mp)
 static mrb_bool
 mt_del(mrb_state *mrb, mt_tbl *mt, mrb_sym sym)
 {
-  return mrb_smap_delete(mt->smap, sym, NULL);
+  return mrb_smap_delete(mrb, &mt->smap, sym, NULL);
 }
 
 /* Copy the method table. */

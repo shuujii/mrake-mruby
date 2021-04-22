@@ -283,15 +283,15 @@ mrb_smap_get(const mrb_smap *t, mrb_sym sym, mrb_value *valp)
 
 /* Deletes the value for the symbol from the map. */
 mrb_bool
-mrb_smap_delete(mrb_smap *t, mrb_sym sym, mrb_value *valp)
+mrb_smap_delete(mrb_state *mrb, mrb_smap **tp, mrb_sym sym, mrb_value *valp)
 {
-  if (!t) return FALSE;
-  smap_each_by_hash_code(t, sym_hash_code(sym), it, {
+  if (!*tp) return FALSE;
+  smap_each_by_hash_code(*tp, sym_hash_code(sym), it, {
     if (smap_it_empty_p(it)) return FALSE;
     if (smap_it_sym(it) != sym) continue;
     if (valp) *valp = smap_it_val(it);
     smap_it_delete(it);
-    smap_set_size(t, smap_size(t) - 1);
+    smap_set_size(*tp, smap_size(*tp) - 1);
     return TRUE;
   });
   return FALSE;
