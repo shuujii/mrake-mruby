@@ -87,6 +87,10 @@ MRB_BEGIN_DECL
 # endif
 #endif
 
+#ifdef _WIN32
+# error MRake does not support Windows
+#endif
+
 MRB_END_DECL
 
 #endif  /* MRUBY_COMMON_H */

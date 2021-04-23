@@ -8,11 +8,12 @@
 
 * Reduce memory usage of instance variable tables (3ea62295)
 * Change type of `mrb_value` from struct to `uintptr_t` (c8291135)
-* Reduce memory usage of method tables
+* Reduce memory usage of method tables (%%%%)
 
 ### Backwards Compatibility
 
-* Drop support for some configurations (13e8647b)
+* Drop support for some configurations (98afff68)
+* Drop support for Windows (FIXME)
 
 ### Bug Fixes
 
