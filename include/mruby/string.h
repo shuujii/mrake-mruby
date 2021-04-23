@@ -458,6 +458,8 @@ mrb_value mrb_str_inspect(mrb_state *mrb, mrb_value str);
 
 mrb_bool mrb_str_beg_len(mrb_int str_len, mrb_int *begp, mrb_int *lenp);
 mrb_value mrb_str_byte_subseq(mrb_state *mrb, mrb_value str, mrb_int beg, mrb_int len);
+mrb_value mrb_string_cstr_str(mrb_state *mrb, mrb_value str);
+mrb_value mrb_str_resize_capa(mrb_state *mrb, mrb_value str, size_t capa);
 
 #ifdef MRB_UTF8_STRING
 mrb_int mrb_utf8len(const char *str, const char *end);

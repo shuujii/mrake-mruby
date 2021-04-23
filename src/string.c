@@ -849,6 +849,27 @@ mrb_str_resize(mrb_state *mrb, mrb_value str, mrb_int len)
   return str;
 }
 
+mrb_value
+mrb_str_resize_capa(mrb_state *mrb, mrb_value str, size_t capa)
+{
+  struct RString *s = mrb_str_ptr(str);
+  mrb_str_modify_keep_ascii(mrb, s);
+  char buf[RSTRING_EMBED_LEN_MAX+1];
+  mrb_int len = RSTR_LEN(s);
+  mrb_bool needs_copy = FALSE;
+  if (RSTR_EMBED_P(s) && !RSTR_EMBEDDABLE_P(capa)) {
+    memcpy(buf, RSTR_EMBED_PTR(s), len+1);
+    needs_copy = TRUE;
+  }
+  resize_capa(mrb, s, capa);
+  if (needs_copy) memcpy(s->as.heap.ptr, buf, len+1);
+  if (capa < len) {
+    RSTR_SET_LEN(s, capa);
+    RSTR_PTR(s)[capa] = '\0';
+  }
+  return str;
+}
+
 MRB_API char*
 mrb_str_to_cstr(mrb_state *mrb, mrb_value str0)
 {
@@ -2386,29 +2407,30 @@ mrb_cstr_to_inum(mrb_state *mrb, const char *str, mrb_int base, mrb_bool badchec
   return mrb_str_len_to_inum(mrb, str, strlen(str), base, badcheck);
 }
 
-/* obslete: use RSTRING_CSTR() or mrb_string_cstr() */
-MRB_API const char*
-mrb_string_value_cstr(mrb_state *mrb, mrb_value *ptr)
+mrb_value
+mrb_string_cstr_str(mrb_state *mrb, mrb_value str)
 {
-  struct RString *ps;
-  const char *p;
-  mrb_int len;
-
-  check_null_byte(mrb, *ptr);
-  ps = mrb_str_ptr(*ptr);
-  p = RSTR_PTR(ps);
-  len = RSTR_LEN(ps);
-  if (p[len] == '\0') {
-    return p;
-  }
+  check_null_byte(mrb, str);
+  struct RString *s = mrb_str_ptr(str);
+  mrb_int len = RSTR_LEN(s);
 
   /*
    * Even after str_modify_keep_ascii(), NULL termination is not ensured if
    * RSTR_SET_LEN() is used explicitly (e.g. String#delete_suffix!).
    */
-  str_modify_keep_ascii(mrb, ps);
-  RSTR_PTR(ps)[len] = '\0';
-  return RSTR_PTR(ps);
+  if (RSTR_PTR(s)[len] != '\0') {
+    str_modify_keep_ascii(mrb, s);
+    RSTR_PTR(s)[len] = '\0';
+  }
+  return str;
+}
+
+/* obslete: use RSTRING_CSTR() or mrb_string_cstr() */
+MRB_API const char*
+mrb_string_value_cstr(mrb_state *mrb, mrb_value *ptr)
+{
+  mrb_string_cstr_str(mrb, *ptr);
+  return RSTRING_PTR(*ptr);
 }
 
 MRB_API const char*
