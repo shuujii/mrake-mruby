@@ -249,7 +249,7 @@ static mrb_value
 mrb_file_expand_path(mrb_state *mrb, mrb_value klass)
 {
   mrb_value fname, dname = mrb_nil_value();
-  mrb_get_args(mrb, "S|S!", &fname, &dname);
+  mrb_get_args(mrb, "Z|Z!", &fname, &dname);
   return mrb_path_expand(mrb, fname, dname);
 }
 

@@ -3,13 +3,14 @@
 ### New Features
 
 * Presym macros support global/special variables (cd0f9406)
+* Add `Z` specifier of `mrb_get_args` for `String` that is C string (d43d417e)
 
 ### Other Improvements
 
 * Reduce memory usage of instance variable tables (3ea62295)
 * Change type of `mrb_value` from struct to `uintptr_t` (c8291135)
 * Reduce memory usage of method tables (%%%%)
-* Change `File.expand_path` to C implementation (FIXME)
+* Change `File.expand_path` to C implementation (a94bbe12)
 
 ### Backwards Compatibility
 

@@ -112,7 +112,7 @@ mrb_path_current_dir(mrb_state *mrb, mrb_value out)
 mrb_value
 mrb_path_expand(mrb_state *mrb, mrb_value fname, mrb_value dname)
 {
-  mrb_string_cstr_str(mrb, fname);
-  if (!mrb_nil_p(dname)) mrb_string_cstr_str(mrb, dname);
+  mrb_assert(mrb_str_cstr_p(fname));
+  mrb_assert(mrb_nil_p(dname) || mrb_str_cstr_p(dname));
   return path_expand(mrb, fname, dname, mrb_str_new_capa(mrb, 257));
 }

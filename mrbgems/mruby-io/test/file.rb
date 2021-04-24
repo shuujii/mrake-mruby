@@ -215,6 +215,8 @@ assert('File.expand_path') do
   assert_raise(TypeError){File.expand_path(1)}
   assert_raise(TypeError){File.expand_path(nil)}
   assert_raise(TypeError){File.expand_path("foo", false)}
+  assert_raise(ArgumentError){File.expand_path("a\0b")}
+  assert_raise(ArgumentError){File.expand_path("foo", "a\0b")}
 end
 
 assert('File.expand_path (with ENV)') do
