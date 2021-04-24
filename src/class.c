@@ -682,8 +682,9 @@ void mrb_hash_check_kdict(mrb_state *mrb, mrb_value self);
     S:      String         [mrb_value]            when ! follows, the value may be nil
     A:      Array          [mrb_value]            when ! follows, the value may be nil
     H:      Hash           [mrb_value]            when ! follows, the value may be nil
+    Z:      String         [mrb_value]            NUL terminated and non-NUL bytes only string; when ! follows, the value may be nil
     s:      String         [const char*,mrb_int]  Receive two arguments; s! gives (NULL,0) for nil
-    z:      String         [const char*]          NUL terminated string; z! gives NULL for nil
+    z:      String         [const char*]          NUL terminated and non-NUL bytes only string; z! gives NULL for nil
     a:      Array          [const mrb_value*,mrb_int] Receive two arguments; a! gives (NULL,0) for nil
     c:      Class/Module   [strcut RClass*]
     f:      Integer/Float  [mrb_float]
@@ -869,6 +870,19 @@ mrb_get_args(mrb_state *mrb, const char *format, ...)
         }
       }
       break;
+    case 'Z':
+      {
+        mrb_value *p;
+
+        p = va_arg(ap, mrb_value*);
+        if (i < argc) {
+          *p = argv[i++];
+          if (!(altmode && mrb_nil_p(*p))) {
+            *p = mrb_str_cstr_str(mrb, *p);
+          }
+        }
+      }
+      break;
     case 's':
       {
         mrb_value ss;
@@ -903,7 +917,6 @@ mrb_get_args(mrb_state *mrb, const char *format, ...)
             *ps = NULL;
           }
           else {
-            mrb_to_str(mrb, ss);
             *ps = RSTRING_CSTR(mrb, ss);
           }
         }
