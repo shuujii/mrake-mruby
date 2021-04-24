@@ -8,6 +8,7 @@
 #include "mruby/string.h"
 #include "mruby/ext/io.h"
 #include "mruby/error.h"
+#include "mruby/path.h"
 #include "mruby/presym.h"
 
 #include <sys/types.h>
@@ -242,6 +243,14 @@ mrb_file_basename(mrb_state *mrb, mrb_value klass)
   if (strncmp(bname, "//", 3) == 0) bname[1] = '\0';  /* patch for Cygwin */
   return mrb_str_new_cstr(mrb, bname);
 #endif
+}
+
+static mrb_value
+mrb_file_expand_path(mrb_state *mrb, mrb_value klass)
+{
+  mrb_value fname, dname = mrb_nil_value();
+  mrb_get_args(mrb, "S|S!", &fname, &dname);
+  return mrb_path_expand(mrb, fname, dname);
 }
 
 static mrb_value
@@ -606,6 +615,7 @@ mrb_init_file(mrb_state *mrb)
 
   mrb_define_class_method(mrb, file, "dirname",   mrb_file_dirname,    MRB_ARGS_REQ(1));
   mrb_define_class_method(mrb, file, "basename",  mrb_file_basename,   MRB_ARGS_REQ(1));
+  mrb_define_class_method(mrb, file, "expand_path",  mrb_file_expand_path,   MRB_ARGS_ARG(1,1));
   mrb_define_class_method(mrb, file, "realpath",  mrb_file_realpath,   MRB_ARGS_REQ(1)|MRB_ARGS_OPT(1));
   mrb_define_class_method(mrb, file, "_getwd",    mrb_file__getwd,     MRB_ARGS_NONE());
   mrb_define_class_method(mrb, file, "_gethome",  mrb_file__gethome,   MRB_ARGS_OPT(1));

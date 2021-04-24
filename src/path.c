@@ -20,11 +20,10 @@ static mrb_value
 path_expand(mrb_state *mrb, mrb_value fname, mrb_value dname, mrb_value out)
 {
   const char *f = RSTRING_PTR(fname), *fend = f + RSTRING_LEN(fname);
-  mrb_int capa = 0;
+  mrb_int ocapa = 0;
 
   /* convert to absolute path */
-  if (mrb_pathz_absolute_p(f)) {
-  } else if (*f == '~') {
+  if (*f == '~') {
     ++f;
     if (mrb_file_sep_p(*f) || !*f) {
       mrb_path_current_user_home(mrb, out);
@@ -34,18 +33,18 @@ path_expand(mrb_state *mrb, mrb_value fname, mrb_value dname, mrb_value out)
     if (!mrb_pathz_absolute_p(RSTRING_PTR(out))) {
       mrb_raise(mrb, E_ARGUMENT_ERROR, "non-absolute home");
     }
-  } else { /* relative path */
+  } else if (!mrb_pathz_absolute_p(f)) {  /* relative path */
     if (mrb_nil_p(dname)) {
       mrb_path_current_dir(mrb, out);
     } else {
       path_expand(mrb, dname, mrb_nil_value(), out);
     }
-    ++capa;
+    ++ocapa;
   }
 
   /* convert to canonical path */
-  capa += RSTRING_LEN(out) + (fend - f);
-  mrb_str_resize_capa(mrb, out, capa);
+  ocapa += RSTRING_LEN(out) + (fend - f);
+  mrb_str_resize_capa(mrb, out, ocapa);
   const char *pbeg;
   char *obeg = RSTRING_PTR(out), *o = obeg + RSTRING_LEN(out);
   mrb_int plen;

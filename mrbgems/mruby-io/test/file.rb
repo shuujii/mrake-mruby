@@ -1,6 +1,10 @@
 ##
 # File Test
 
+def assert_expand_path(exp, args)
+  assert_equal exp, File.expand_path(*args)
+end
+
 MRubyIOTestUtil.io_test_setup
 
 assert('File.class', '15.2.21') do
@@ -166,22 +170,51 @@ assert("File.readlink fails with non-symlink") do
 end
 
 assert('File.expand_path') do
-  assert_equal "/",    File.expand_path("..", "/tmp"),       "parent path with base_dir (1)"
-  assert_equal "/tmp", File.expand_path("..", "/tmp/mruby"), "parent path with base_dir (2)"
+  cwd = File._getwd
+  home = File._gethome
 
-  assert_equal "/home", File.expand_path("/home"),      "absolute"
-  assert_equal "/home", File.expand_path("/home", "."), "absolute with base_dir"
+  assert_expand_path "/", ["/"]
+  assert_expand_path "/foo", ["/foo/"]
+  assert_expand_path "/", ["/", "/foo"]
+  assert_expand_path "/foo", ["/foo", ".."]
+  assert_expand_path "/foo/baz/qux", ["/foo///bar//./.././//baz/qux//"]
+  assert_expand_path "/baz", ["/foo/bar//./.././../baz"]
+  assert_expand_path "/", ["/foo/bar//./.././/../../.."]
+  assert_expand_path "/baz", ["/foo/bar//./.././/../../../baz"]
 
-  assert_equal "/hoge", File.expand_path("/tmp/..//hoge")
-  assert_equal "/hoge", File.expand_path("////tmp/..///////hoge")
-
-  assert_equal "/", File.expand_path("../../../..", "/")
-  if File._getwd[1] == ":"
-    drive_letter = File._getwd[0]
-    assert_equal drive_letter + ":\\", File.expand_path(([".."] * 100).join("/"))
-  else
-    assert_equal "/", File.expand_path(([".."] * 100).join("/"))
+  assert_expand_path home, ["~"]
+  assert_expand_path home, ["~", ".."]
+  assert_expand_path "#{home}/foo/bar", ["~/foo/bar"]
+  assert_expand_path "#{home}/foo", ["~/foo/bar//../"]
+  assert_expand_path home.split("/")[0..-2].join("/"), ["~/.."]
+  assert_expand_path "#{home}/~", ["~/~"]
+  assert_expand_path "/aa/.b/c./.../~/..d..", ["/aa/.b/c./.../~/..d.."]
+  assert_raise_with_message_pattern(ArgumentError, "*unsupported*") do
+    File.expand_path("~foo/bar")
   end
+
+  assert_expand_path cwd, [""]
+  assert_expand_path cwd, ["."]
+  assert_expand_path "#{cwd}/foo", ["foo"]
+  assert_expand_path "#{cwd}/foo", ["foo", nil]
+  assert_expand_path "#{cwd}/bar/foo", ["foo", "bar"]
+  assert_expand_path "#{cwd.split('/')[0..-2].join('/')}/foo", ["foo", ".."]
+  assert_expand_path "#{cwd}/.a", [".a"]
+  assert_expand_path "#{cwd}/..a", ["..a"]
+  assert_expand_path "#{cwd}/a.", ["a."]
+  assert_expand_path "#{cwd}/a..", ["a.."]
+  assert_expand_path "#{home}/bar/foo", ["foo", "~/bar"]
+  assert_expand_path "/foo", ["", "/foo"]
+  assert_expand_path "/foo/a", ["a", "/foo"]
+  assert_expand_path "/foo/a", ["../a", "/foo/bar"]
+  assert_expand_path "/a", ["../../../a", "/foo/bar"]
+  assert_expand_path "/bar/baz/foo", ["foo", "/bar//baz///"]
+  assert_expand_path "/baz/foo", ["foo", "/bar/../baz"]
+  assert_expand_path "/", ["../" * 100]
+
+  assert_raise(TypeError){File.expand_path(1)}
+  assert_raise(TypeError){File.expand_path(nil)}
+  assert_raise(TypeError){File.expand_path("foo", false)}
 end
 
 assert('File.expand_path (with ENV)') do
