@@ -16,6 +16,7 @@ pathz_next_part(const char *p, mrb_int *lenp)
   return *p ? ++p : p;
 }
 
+/* Result is concatenated to `out` */
 static mrb_value
 path_expand(mrb_state *mrb, mrb_value fname, mrb_value dname, mrb_value out)
 {
@@ -78,6 +79,7 @@ mrb_pathz_explicit_relative_p(const char *path)
   return mrb_file_sep_p(*path);
 }
 
+/* Result is concatenated to `out` */
 mrb_value
 mrb_path_current_user_home(mrb_state *mrb, mrb_value out)
 {
@@ -91,6 +93,7 @@ mrb_path_current_user_home(mrb_state *mrb, mrb_value out)
   return out;
 }
 
+/* Result is concatenated to `out` */
 mrb_value
 mrb_path_current_dir(mrb_state *mrb, mrb_value out)
 {
