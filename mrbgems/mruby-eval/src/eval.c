@@ -17,7 +17,6 @@ void mrb_proc_merge_lvar(mrb_state *mrb, mrb_irep *irep, struct REnv *env, int n
 static struct RProc*
 create_proc_from_string(mrb_state *mrb, const char *s, mrb_int len, mrb_value binding, const char *file, mrb_int line)
 {
-  mrbc_context *cxt;
   struct mrb_parser_state *p;
   struct RProc *proc;
   const struct RProc *scope;
@@ -52,7 +51,7 @@ create_proc_from_string(mrb_state *mrb, const char *s, mrb_int len, mrb_value bi
     e = NULL;
   }
 
-  cxt = mrbc_context_new(mrb);
+  mrbc_context cxt[] = {MRBC_CONTEXT_INITIALIZER};
   cxt->lineno = (uint16_t)line;
 
   mrbc_filename(mrb, cxt, file ? file : "(eval)");
@@ -83,7 +82,7 @@ create_proc_from_string(mrb_state *mrb, const char *s, mrb_int len, mrb_value bi
                        p->error_buffer[0].message);
     }
     mrb_parser_free(p);
-    mrbc_context_free(mrb, cxt);
+    mrbc_context_finalize(mrb, cxt);
     mrb_exc_raise(mrb, mrb_exc_new_str(mrb, E_SYNTAX_ERROR, str));
   }
 
@@ -91,7 +90,7 @@ create_proc_from_string(mrb_state *mrb, const char *s, mrb_int len, mrb_value bi
   if (proc == NULL) {
     /* codegen error */
     mrb_parser_free(p);
-    mrbc_context_free(mrb, cxt);
+    mrbc_context_finalize(mrb, cxt);
     mrb_raise(mrb, E_SCRIPT_ERROR, "codegen error");
   }
   if (c->ci > c->cibase) {
@@ -121,7 +120,7 @@ create_proc_from_string(mrb_state *mrb, const char *s, mrb_int len, mrb_value bi
   /* mrb_codedump_all(mrb, proc); */
 
   mrb_parser_free(p);
-  mrbc_context_free(mrb, cxt);
+  mrbc_context_finalize(mrb, cxt);
 
   return proc;
 }

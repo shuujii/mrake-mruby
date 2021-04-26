@@ -207,13 +207,12 @@ partial_hook(struct mrb_parser_state *p)
 static mrb_value
 load_file(mrb_state *mrb, struct mrbc_args *args)
 {
-  mrbc_context *c;
+  mrbc_context c[] = {MRBC_CONTEXT_INITIALIZER};
   mrb_value result;
   char *input = args->argv[args->idx];
   FILE *infile;
   mrb_bool need_close = FALSE;
 
-  c = mrbc_context_new(mrb);
   if (args->verbose)
     c->dump_result = TRUE;
   c->no_exec = TRUE;
@@ -236,7 +235,7 @@ load_file(mrb_state *mrb, struct mrbc_args *args)
 
   result = mrb_load_file_cxt(mrb, infile, c);
   if (need_close) fclose(infile);
-  mrbc_context_free(mrb, c);
+  mrbc_context_finalize(mrb, c);
   if (mrb_undef_p(result)) {
     return mrb_nil_value();
   }

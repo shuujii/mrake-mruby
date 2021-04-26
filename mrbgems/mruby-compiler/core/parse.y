@@ -6634,6 +6634,13 @@ mrb_parser_free(parser_state *p) {
   mrb_pool_close(p->pool);
 }
 
+MRB_API void
+mrbc_context_finalize(mrb_state *mrb, mrbc_context *cxt)
+{
+  mrb_free(mrb, cxt->filename);
+  mrb_free(mrb, cxt->syms);
+}
+
 MRB_API mrbc_context*
 mrbc_context_new(mrb_state *mrb)
 {
@@ -6643,8 +6650,7 @@ mrbc_context_new(mrb_state *mrb)
 MRB_API void
 mrbc_context_free(mrb_state *mrb, mrbc_context *cxt)
 {
-  mrb_free(mrb, cxt->filename);
-  mrb_free(mrb, cxt->syms);
+  mrbc_context_finalize(mrb, cxt);
   mrb_free(mrb, cxt);
 }
 

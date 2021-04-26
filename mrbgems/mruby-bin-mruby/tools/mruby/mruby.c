@@ -271,7 +271,6 @@ main(int argc, char **argv)
   int i;
   struct _args args;
   mrb_value ARGV;
-  mrbc_context *c;
   mrb_value v;
   mrb_sym zero_sym;
 
@@ -298,7 +297,7 @@ main(int argc, char **argv)
     mrb_define_global_const(mrb, "ARGV", ARGV);
     mrb_gv_set(mrb, MRB_GVSYM(DEBUG), mrb_bool_value(args.debug));
 
-    c = mrbc_context_new(mrb);
+    mrbc_context c[] = {MRBC_CONTEXT_INITIALIZER};
     if (args.verbose)
       c->dump_result = TRUE;
     if (args.check_syntax)
@@ -323,7 +322,7 @@ main(int argc, char **argv)
       FILE *lfp = fopen(args.libv[i], "rb");
       if (lfp == NULL) {
         fprintf(stderr, "%s: Cannot open library file: %s\n", *argv, args.libv[i]);
-        mrbc_context_free(mrb, c);
+        mrbc_context_finalize(mrb, c);
         cleanup(mrb, &args);
         return EXIT_FAILURE;
       }
@@ -355,7 +354,7 @@ main(int argc, char **argv)
     }
 
     mrb_gc_arena_restore(mrb, ai);
-    mrbc_context_free(mrb, c);
+    mrbc_context_finalize(mrb, c);
     if (mrb->exc) {
       if (!mrb_undef_p(v)) {
         mrb_print_error(mrb);

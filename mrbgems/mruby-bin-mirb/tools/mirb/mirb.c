@@ -453,7 +453,7 @@ main(int argc, char **argv)
   char *history_path;
   char* line;
 #endif
-  mrbc_context *cxt;
+  mrbc_context cxt[] = {MRBC_CONTEXT_INITIALIZER};
   struct mrb_parser_state *parser;
   mrb_state *mrb;
   mrb_value result;
@@ -503,8 +503,6 @@ main(int argc, char **argv)
 #endif
 
   print_hint();
-
-  cxt = mrbc_context_new(mrb);
 
   /* Load libraries */
   for (i = 0; i < args.libc; i++) {
@@ -709,7 +707,7 @@ main(int argc, char **argv)
     }
     mrb_free(mrb, args.libv);
   }
-  mrbc_context_free(mrb, cxt);
+  mrbc_context_finalize(mrb, cxt);
   mrb_close(mrb);
 
   return 0;

@@ -17,9 +17,8 @@
 static void
 mrdb_check_syntax(mrb_state *mrb, mrb_debug_context *dbg, const char *expr, size_t len)
 {
-  mrbc_context *c;
+  mrbc_context c[] = {MRBC_CONTEXT_INITIALIZER};
 
-  c = mrbc_context_new(mrb);
   c->no_exec = TRUE;
   c->capture_errors = TRUE;
   mrbc_filename(mrb, c, (const char*)dbg->prvfile);
@@ -28,7 +27,7 @@ mrdb_check_syntax(mrb_state *mrb, mrb_debug_context *dbg, const char *expr, size
   /* Load program */
   mrb_load_nstring_cxt(mrb, expr, len, c);
 
-  mrbc_context_free(mrb, c);
+  mrbc_context_finalize(mrb, c);
 }
 
 mrb_value
