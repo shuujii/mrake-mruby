@@ -878,7 +878,7 @@ mrb_get_args(mrb_state *mrb, const char *format, ...)
         if (i < argc) {
           *p = argv[i++];
           if (!(altmode && mrb_nil_p(*p))) {
-            *p = mrb_str_cstr_str(mrb, *p);
+            *p = mrb_string_cstr_str(mrb, *p);
           }
         }
       }

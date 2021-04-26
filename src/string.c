@@ -2408,7 +2408,7 @@ mrb_cstr_to_inum(mrb_state *mrb, const char *str, mrb_int base, mrb_bool badchec
 }
 
 mrb_value
-mrb_str_cstr_str(mrb_state *mrb, mrb_value str)
+mrb_string_cstr_str(mrb_state *mrb, mrb_value str)
 {
   check_null_byte(mrb, str);
   struct RString *s = mrb_str_ptr(str);
@@ -2435,7 +2435,7 @@ mrb_string_value_cstr(mrb_state *mrb, mrb_value *ptr)
 MRB_API const char*
 mrb_string_cstr(mrb_state *mrb, mrb_value str)
 {
-  mrb_str_cstr_str(mrb, str);
+  mrb_string_cstr_str(mrb, str);
   return RSTRING_PTR(str);
 }
 

@@ -343,7 +343,6 @@ MRB_API mrb_value mrb_str_new_capa(mrb_state *mrb, size_t capa);
 
 /* NULL terminated C string from mrb_value */
 MRB_API const char *mrb_string_cstr(mrb_state *mrb, mrb_value str);
-#define mrb_str_cstr(mrb, str) mrb_string_cstr(mrb, str)
 /* obsolute: NULL terminated C string from mrb_value; `str` will be updated */
 MRB_API const char *mrb_string_value_cstr(mrb_state *mrb, mrb_value *str);
 /* obsolete: use RSTRING_PTR() */
@@ -459,8 +458,8 @@ mrb_value mrb_str_inspect(mrb_state *mrb, mrb_value str);
 
 mrb_bool mrb_str_beg_len(mrb_int str_len, mrb_int *begp, mrb_int *lenp);
 mrb_value mrb_str_byte_subseq(mrb_state *mrb, mrb_value str, mrb_int beg, mrb_int len);
-mrb_value mrb_str_cstr_str(mrb_state *mrb, mrb_value str);
 mrb_value mrb_str_resize_capa(mrb_state *mrb, mrb_value str, size_t capa);
+mrb_value mrb_string_cstr_str(mrb_state *mrb, mrb_value str);
 
 #ifdef MRB_UTF8_STRING
 mrb_int mrb_utf8len(const char *str, const char *end);
