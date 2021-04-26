@@ -272,7 +272,6 @@ main(int argc, char **argv)
   struct _args args;
   mrb_value ARGV;
   mrb_value v;
-  mrb_sym zero_sym;
 
   if (mrb == NULL) {
     fprintf(stderr, "%s: Invalid mrb_state, exiting mruby\n", *argv);
@@ -304,17 +303,14 @@ main(int argc, char **argv)
       c->no_exec = TRUE;
 
     /* Set $0 */
-    zero_sym = MRB_GVSYM(0);
+    const char *cmdline;
     if (args.rfp) {
-      const char *cmdline;
       cmdline = args.cmdline ? args.cmdline : "-";
-      mrbc_filename(mrb, c, cmdline);
-      mrb_gv_set(mrb, zero_sym, mrb_str_new_cstr(mrb, cmdline));
     }
     else {
-      mrbc_filename(mrb, c, "-e");
-      mrb_gv_set(mrb, zero_sym, mrb_str_new_lit(mrb, "-e"));
+      cmdline = "-e";
     }
+    mrb_gv_set(mrb, MRB_GVSYM(0), mrb_str_new_cstr(mrb, cmdline));
 
     /* Load libraries */
     for (i = 0; i < args.libc; i++) {
@@ -330,6 +326,7 @@ main(int argc, char **argv)
         v = mrb_load_irep_file_cxt(mrb, lfp, c);
       }
       else {
+        mrbc_filename(mrb, c, args.libv[i]);
         v = mrb_load_detect_file_cxt(mrb, lfp, c);
       }
       fclose(lfp);
@@ -338,6 +335,9 @@ main(int argc, char **argv)
       mrb_env_unshare(mrb, e);
       mrbc_cleanup_local_variables(mrb, c);
     }
+
+    /* set program file name */
+    mrbc_filename(mrb, c, cmdline);
 
     /* Load program */
     if (args.mrbfile) {
