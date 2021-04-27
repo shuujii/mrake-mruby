@@ -11,7 +11,7 @@
 * Reduce memory usage of instance variable tables (3ea62295)
 * Change type of `mrb_value` from struct to `uintptr_t` (c8291135)
 * Reduce memory usage of method tables (98afff68)
-* Change `File.expand_path` to C implementation (a94bbe12)
+* Improve `File.expand_path` performance (a94bbe12)
 
 ### Backwards Compatibility
 

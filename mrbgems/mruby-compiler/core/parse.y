@@ -3486,11 +3486,9 @@ var_ref         : variable
                     }
                 | keyword__FILE__
                     {
-                      const char *fn = mrb_sym_name_len(p->mrb, p->filename_sym, NULL);
-                      if (!fn) {
-                        fn = "(null)";
-                      }
-                      $$ = new_str(p, fn, strlen(fn));
+                      mrb_int len;
+                      const char *fn = mrb_sym_name_len(p->mrb, p->filename_sym, &len);
+                      $$ = new_str(p, fn, len);
                     }
                 | keyword__LINE__
                     {
