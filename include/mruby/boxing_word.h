@@ -29,12 +29,12 @@ struct RInteger {
  *   fixnum: IIIIIIII IIIIIIII IIIIIIII IIIIIIII IIIIIIII .... IIIIIII1
  *  (flonum: EEEEEEEE EMMMMMMM MMMMMMMM MMMMMMMM MMMMMMMM .... MMMMMS10 [^3])
  *   symbol: YYYYYYYY YYYYYYYY YYYYYYYY YYYYYYYY 00000000 .... 00011100
- *   object: PPPPPPPP PPPPPPPP PPPPPPPP PPPPPPPP PPPPPPPP .... PPPPP000 [^4]
+ *   object: 00PPPPPP PPPPPPPP PPPPPPPP PPPPPPPP PPPPPPPP .... PPPPP000 [^4]
  *
  *   [^1] All bits are 0 (mrb_fixnum(v) == 0)
  *   [^2] mrb_fixnum(v) != 0
  *   [^3] Reserved
- *   [^4] Raw pointer, any bits are 1
+ *   [^4] Raw object pointer, any bit of P is 1
  */
 
 typedef uintptr_t mrb_value;
