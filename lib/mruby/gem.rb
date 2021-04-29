@@ -151,7 +151,9 @@ module MRuby
       end
 
       def test_rbfiles
-        @test_rbfiles ||= Dir["#{@dir}/test/**/*.rb"].sort!
+        @test_rbfiles ||= Dir["#{@dir}/test/**/*.rb"].reject do |path|
+          path.include?("/fixtures/")
+        end.sort!
       end
 
       def search_package(name, version_query=nil)

@@ -4,7 +4,7 @@
 
 * Presym macros support global/special variables (cd0f9406)
 * Add `Z` specifier of `mrb_get_args` for `String` that is C string (d43d417e)
-* Add `MRBC_CONTEXT_INITIALIZER` and `mrbc_context_finalize` (FIXME)
+* Add `MRBC_CONTEXT_INITIALIZER` and `mrbc_context_finalize` (8cdb7d0e)
 
 ### Other Improvements
 
@@ -17,6 +17,7 @@
 
 * Drop support for some configurations (98afff68)
 * Drop support for Windows (58c8c396)
+* Exclude files in `fixtures` directories for test ruby files (FIXME)
 
 ### Bug Fixes
 
