@@ -17,7 +17,8 @@
 
 * Drop support for some configurations (98afff68)
 * Drop support for Windows (58c8c396)
-* Exclude files in `fixtures` directories for test ruby files (FIXME)
+* Exclude files in `fixtures` directories for test ruby files (c98ff54d)
+* Rename `Mrbtest` to `MRubyTest` and separate file to `mruby_test.c` (FIXME)
 
 ### Bug Fixes
 

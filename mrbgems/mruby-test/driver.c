@@ -21,6 +21,7 @@
 extern const uint8_t mrbtest_assert_irep[];
 
 void mrbgemtest_init(mrb_state* mrb);
+void mrb_init_test_mruby_test(mrb_state* mrb);
 void mrb_init_test_vformat(mrb_state* mrb);
 
 /* Print a short remark for the user */
@@ -212,26 +213,11 @@ m_str_match_p(mrb_state *mrb, mrb_value self)
 void
 mrb_init_test_driver(mrb_state *mrb, mrb_bool verbose)
 {
-  struct RClass *krn, *mrbtest;
-
-  krn = mrb->kernel_module;
+  struct RClass *krn = mrb->kernel_module;
   mrb_define_method(mrb, krn, "t_print", t_print, MRB_ARGS_ANY());
   mrb_define_method(mrb, krn, "_str_match?", m_str_match_p, MRB_ARGS_REQ(2));
 
-  mrbtest = mrb_define_module(mrb, "Mrbtest");
-
-  mrb_define_const(mrb, mrbtest, "FIXNUM_MAX", mrb_fixnum_value(MRB_INT_MAX));
-  mrb_define_const(mrb, mrbtest, "FIXNUM_MIN", mrb_fixnum_value(MRB_INT_MIN));
-  mrb_define_const(mrb, mrbtest, "FIXNUM_BIT", mrb_fixnum_value(MRB_INT_BIT));
-
-#ifndef MRB_NO_FLOAT
-#ifdef MRB_USE_FLOAT32
-  mrb_define_const(mrb, mrbtest, "FLOAT_TOLERANCE", mrb_float_value(mrb, 1e-5));
-#else
-  mrb_define_const(mrb, mrbtest, "FLOAT_TOLERANCE", mrb_float_value(mrb, 1e-10));
-#endif
-#endif
-
+  mrb_init_test_mruby_test(mrb);
   mrb_init_test_vformat(mrb);
 
   if (verbose) {
