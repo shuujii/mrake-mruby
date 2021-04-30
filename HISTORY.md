@@ -12,13 +12,14 @@
 * Change type of `mrb_value` from struct to `uintptr_t` (c8291135)
 * Reduce memory usage of method tables (98afff68)
 * Improve `File.expand_path` performance (a94bbe12)
+* Add some utility methods for test (FIXME)
 
 ### Backwards Compatibility
 
 * Drop support for some configurations (98afff68)
 * Drop support for Windows (58c8c396)
 * Exclude files in `fixtures` directories for test ruby files (c98ff54d)
-* Rename `Mrbtest` to `MRubyTest` and separate file to `mruby_test.c` (FIXME)
+* Rename `Mrbtest` to `MRubyTest` and separate file to `mruby_test.c` (4fc81344)
 
 ### Bug Fixes
 
