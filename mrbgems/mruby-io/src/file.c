@@ -207,42 +207,19 @@ mrb_file_dirname(mrb_state *mrb, mrb_value klass)
 static mrb_value
 mrb_file_basename(mrb_state *mrb, mrb_value klass)
 {
-  // NOTE: Do not use mrb_locale_from_utf8 here
-#if defined(_WIN32) || defined(_WIN64)
-  char bname[_MAX_DIR];
-  char extname[_MAX_EXT];
-  char *path;
-  size_t ridx;
-  char buffer[_MAX_DIR + _MAX_EXT];
-  mrb_value s;
+  mrb_value path = mrb_string_cstr_str(mrb, mrb_get_arg1(mrb));
+  mrb_int base_len;
+  mrb_int base_pos = mrb_path_basename(path, &base_len) - RSTRING_PTR(path);
+  return mrb_str_byte_subseq(mrb, path, base_pos, base_len);
+}
 
-  mrb_get_args(mrb, "S", &s);
-  path = mrb_str_to_cstr(mrb, s);
-  ridx = strlen(path);
-  if (ridx > 0) {
-    ridx--;
-    while (ridx > 0 && (path[ridx] == '/' || path[ridx] == '\\')) {
-      path[ridx] = '\0';
-      ridx--;
-    }
-    if (strncmp(path, "/", 2) == 0) {
-      return mrb_str_new_cstr(mrb, path);
-    }
-  }
-  _splitpath((const char*)path, NULL, NULL, bname, extname);
-  snprintf(buffer, _MAX_DIR + _MAX_EXT, "%s%s", bname, extname);
-  return mrb_str_new_cstr(mrb, buffer);
-#else
-  char *bname, *path;
-  mrb_value s;
-  mrb_get_args(mrb, "S", &s);
-  path = mrb_str_to_cstr(mrb, s);
-  if ((bname = basename(path)) == NULL) {
-    mrb_sys_fail(mrb, "basename");
-  }
-  if (strncmp(bname, "//", 3) == 0) bname[1] = '\0';  /* patch for Cygwin */
-  return mrb_str_new_cstr(mrb, bname);
-#endif
+static mrb_value
+mrb_file_extname(mrb_state *mrb, mrb_value klass)
+{
+  mrb_value path = mrb_string_cstr_str(mrb, mrb_get_arg1(mrb));
+  mrb_int ext_len;
+  mrb_int ext_pos = mrb_path_extname(path, &ext_len) - RSTRING_PTR(path);
+  return mrb_str_byte_subseq(mrb, path, ext_pos, ext_len);
 }
 
 static mrb_value
@@ -615,6 +592,7 @@ mrb_init_file(mrb_state *mrb)
 
   mrb_define_class_method(mrb, file, "dirname",   mrb_file_dirname,    MRB_ARGS_REQ(1));
   mrb_define_class_method(mrb, file, "basename",  mrb_file_basename,   MRB_ARGS_REQ(1));
+  mrb_define_class_method(mrb, file, "extname",  mrb_file_extname,   MRB_ARGS_REQ(1));
   mrb_define_class_method(mrb, file, "expand_path",  mrb_file_expand_path,   MRB_ARGS_ARG(1,1));
   mrb_define_class_method(mrb, file, "realpath",  mrb_file_realpath,   MRB_ARGS_REQ(1)|MRB_ARGS_OPT(1));
   mrb_define_class_method(mrb, file, "_getwd",    mrb_file__getwd,     MRB_ARGS_NONE());

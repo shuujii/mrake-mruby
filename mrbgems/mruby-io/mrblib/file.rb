@@ -110,13 +110,6 @@ class File < IO
     FileTest.zero?(file)
   end
 
-  def self.extname(filename)
-    fname = self.basename(filename)
-    epos = fname.rindex('.')
-    return '' if epos == 0 || epos.nil?
-    return fname[epos..-1]
-  end
-
   def self.path(filename)
     if filename.kind_of?(String)
       filename

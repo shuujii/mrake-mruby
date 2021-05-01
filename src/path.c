@@ -79,6 +79,35 @@ mrb_pathz_explicit_relative_p(const char *path)
   return mrb_file_sep_p(*path);
 }
 
+/* The return value is guaranteed to point to the buffer in the `path` */
+char *
+mrb_path_basename(mrb_value path, mrb_int *lenp)
+{
+  mrb_assert(mrb_str_cstr_p(path));
+  char *beg = RSTRING_PTR(path), *end = RSTRING_END(path);
+  if (beg == end) return end + (*lenp = 0);
+  mrb_int i = end - beg - 1;
+  while (i && mrb_file_sep_p(beg[i])) --i;
+  end = beg + i + 1;
+  while (i && !mrb_file_sep_p(beg[i - 1])) --i;
+  *lenp = end - beg - i;
+  return beg + i;
+}
+
+/* The return value is guaranteed to point to the buffer in the `path` */
+char *
+mrb_path_extname(mrb_value path, mrb_int *lenp)
+{
+  mrb_assert(mrb_str_cstr_p(path));
+  mrb_int base_len;
+  char *base = mrb_path_basename(path, &base_len), *p = base + base_len;
+  while (*base == '.') ++base, --base_len;
+  while (p != base && *p != '.') --p;
+  if (p == base) return RSTRING_END(path) + (*lenp = 0);
+  *lenp = base_len - (p - base);
+  return p;
+}
+
 /* Result is concatenated to `out` */
 mrb_value
 mrb_path_current_user_home(mrb_state *mrb, mrb_value out)

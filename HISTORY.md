@@ -12,7 +12,8 @@
 * Change type of `mrb_value` from struct to `uintptr_t` (c8291135)
 * Reduce memory usage of method tables (98afff68)
 * Improve `File.expand_path` performance (a94bbe12)
-* Add some utility methods for test (FIXME)
+* Add some utility methods for test (fc3e8bf5)
+* Improve `File.extname` performance (FIXME)
 
 ### Backwards Compatibility
 

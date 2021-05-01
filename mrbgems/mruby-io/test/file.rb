@@ -33,11 +33,21 @@ assert('File#path', '15.2.21.4.2') do
 end
 
 assert('File.basename') do
+  assert_equal '', File.basename('')
+  assert_equal '/', File.basename('/')
   assert_equal '/', File.basename('//')
   assert_equal 'a', File.basename('/a/')
-  assert_equal 'b', File.basename('/a/b')
+  assert_equal 'a', File.basename('/a//')
+  assert_equal 'a', File.basename('//a')
+  assert_equal '.', File.basename('/a/.')
+  assert_equal 'b.c', File.basename('/a/b.c')
   assert_equal 'b', File.basename('../a/b')
+  assert_equal 'foo.bar', File.basename('foo.bar')
+  assert_equal 'bar', File.basename('foo/bar')
   assert_raise(ArgumentError) { File.basename("/a/b\0") }
+  assert_raise(ArgumentError) { File.basename }
+  assert_raise(ArgumentError) { File.basename("a", "b") }
+  assert_raise(TypeError) { File.basename(nil) }
 end
 
 assert('File.dirname') do
@@ -55,8 +65,19 @@ assert('File.extname') do
   assert_equal '', File.extname('foo/.bar')
   assert_equal '', File.extname('foo.txt/bar')
   assert_equal '', File.extname('.foo')
+  assert_equal '', File.extname('/.foo')
+  assert_equal '', File.extname('.')
+  assert_equal '', File.extname('..a')
   assert_equal '.rb', File.extname('.a.rb')
   assert_equal '.', File.extname('foo.')
+  assert_equal '.a', File.extname('foo..a')
+  assert_equal '.bar', File.extname('foo.bar/')
+  assert_equal '.bar', File.extname('/foo.bar//')
+  assert_equal '', File.extname('/foo.bar/.')
+  assert_raise(ArgumentError) { File.extname("/a/b\0") }
+  assert_raise(ArgumentError) { File.extname }
+  assert_raise(ArgumentError) { File.extname("a", "b") }
+  assert_raise(TypeError) { File.extname(nil) }
 end
 
 assert('File#flock') do
