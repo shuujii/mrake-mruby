@@ -297,7 +297,7 @@ mrb_smap_delete(mrb_state *mrb, mrb_smap **tp, mrb_sym sym, mrb_value *valp)
   return FALSE;
 }
 
-/* Iterates over the map. */
+/* Iterates over the map. Break the loop If `func` returns non zero. */
 void
 mrb_smap_each(mrb_state *mrb, mrb_smap *t, mrb_smap_each_func *func, void *data)
 {
@@ -322,7 +322,7 @@ mrb_smap_copy(mrb_state *mrb, const mrb_smap *t)
   return (mrb_smap *)((char *)p + smap_offset_for(capa));
 }
 
-/* Free the map (NULL safe). */
+/* Free the map. */
 void
 mrb_smap_free(mrb_state *mrb, mrb_smap *t)
 {

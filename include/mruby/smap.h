@@ -6,7 +6,6 @@
  */
 
 typedef struct mrb_smap mrb_smap;
-/* return non zero to break the loop */
 typedef int (mrb_smap_each_func)(mrb_state *, mrb_sym, mrb_value, void *);
 
 size_t mrb_smap_memsize(const mrb_smap *t);
