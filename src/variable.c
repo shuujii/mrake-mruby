@@ -23,7 +23,7 @@ iv_mark_i(mrb_state *mrb, mrb_sym sym, mrb_value v, void *p)
 static void
 mark_tbl(mrb_state *mrb, mrb_smap *t)
 {
-  mrb_smap_each(mrb, t, iv_mark_i, 0);
+  mrb_smap_each_pair(mrb, t, iv_mark_i, 0);
 }
 
 void
@@ -93,11 +93,8 @@ class_iv_ptr(struct RClass *c)
 MRB_API mrb_value
 mrb_obj_iv_get(mrb_state *mrb, struct RObject *obj, mrb_sym sym)
 {
-  mrb_value v;
-
-  if (mrb_smap_get(obj->iv, sym, &v))
-    return v;
-  return mrb_nil_value();
+  mrb_smap_iter it = mrb_smap_get(obj->iv, sym);
+  return mrb_smap_it_null_p(it) ? mrb_nil_value() : mrb_smap_it_value(it);
 }
 
 MRB_API mrb_value
@@ -131,7 +128,7 @@ MRB_API void
 mrb_iv_foreach(mrb_state *mrb, mrb_value obj, mrb_iv_foreach_func *func, void *p)
 {
   if (!obj_iv_p(obj)) return;
-  mrb_smap_each(mrb, mrb_obj_ptr(obj)->iv, func, p);
+  mrb_smap_each_pair(mrb, mrb_obj_ptr(obj)->iv, func, p);
 }
 
 static inline mrb_bool
@@ -180,7 +177,7 @@ mrb_iv_set(mrb_state *mrb, mrb_value obj, mrb_sym sym, mrb_value v)
 MRB_API mrb_bool
 mrb_obj_iv_defined(mrb_state *mrb, struct RObject *obj, mrb_sym sym)
 {
-  return mrb_smap_get(obj->iv, sym, NULL);
+  return mrb_smap_include_p(obj->iv, sym);
 }
 
 MRB_API mrb_bool
@@ -265,7 +262,7 @@ mrb_obj_iv_inspect(mrb_state *mrb, struct RObject *obj)
     mrb_str_cat_lit(mrb, str, ":");
     mrb_str_cat_str(mrb, str, mrb_ptr_to_str(mrb, obj));
 
-    mrb_smap_each(mrb, obj->iv, inspect_i, &str);
+    mrb_smap_each_pair(mrb, obj->iv, inspect_i, &str);
     mrb_str_cat_lit(mrb, str, ">");
     return str;
   }
@@ -278,9 +275,7 @@ mrb_iv_remove(mrb_state *mrb, mrb_value obj, mrb_sym sym)
   if (obj_iv_p(obj)) {
     mrb_value val;
     mrb_check_frozen(mrb, mrb_obj_ptr(obj));
-    if (mrb_smap_delete(mrb, &mrb_obj_ptr(obj)->iv, sym, &val)) {
-      return val;
-    }
+    if (mrb_smap_delete2(mrb, &mrb_obj_ptr(obj)->iv, sym, &val)) return val;
   }
   return mrb_undef_value();
 }
@@ -324,7 +319,7 @@ mrb_obj_instance_variables(mrb_state *mrb, mrb_value self)
 
   ary = mrb_ary_new(mrb);
   if (obj_iv_p(self)) {
-    mrb_smap_each(mrb, mrb_obj_ptr(self)->iv, iv_i, &ary);
+    mrb_smap_each_pair(mrb, mrb_obj_ptr(self)->iv, iv_i, &ary);
   }
   return ary;
 }
@@ -370,10 +365,10 @@ mrb_mod_class_variables(mrb_state *mrb, mrb_value mod)
   mrb_get_args(mrb, "|b", &inherit);
   ary = mrb_ary_new(mrb);
   c = mrb_class_ptr(mod);
-  mrb_smap_each(mrb, c->iv, cv_i, &ary);
+  mrb_smap_each_pair(mrb, c->iv, cv_i, &ary);
   if (inherit) {
     while ((c = c->super)) {
-      mrb_smap_each(mrb, *class_iv_ptr(c), cv_i, &ary);
+      mrb_smap_each_pair(mrb, *class_iv_ptr(c), cv_i, &ary);
     }
   }
   return ary;
@@ -387,17 +382,16 @@ mrb_mod_cv_get(mrb_state *mrb, struct RClass *c, mrb_sym sym)
   int given = FALSE;
 
   do {
-    if (mrb_smap_get(*class_iv_ptr(c), sym, &v)) given = TRUE;
+    if (mrb_smap_get2(*class_iv_ptr(c), sym, &v)) given = TRUE;
   } while ((c = c->super));
   if (given) return v;
   if (cls->tt == MRB_TT_SCLASS) {
     mrb_value klass;
-
     klass = mrb_obj_iv_get(mrb, (struct RObject *)cls, MRB_SYM(__attached__));
     c = mrb_class_ptr(klass);
     if (c->tt == MRB_TT_CLASS || c->tt == MRB_TT_MODULE) {
       do {
-        if (mrb_smap_get(*class_iv_ptr(c), sym, &v)) given = TRUE;
+        if (mrb_smap_get2(*class_iv_ptr(c), sym, &v)) given = TRUE;
       } while ((c = c->super));
       if (given) return v;
     }
@@ -420,9 +414,10 @@ mrb_mod_cv_set(mrb_state *mrb, struct RClass *c, mrb_sym sym, mrb_value v)
 
   do {
     mrb_smap **iv_ptr = class_iv_ptr(c);
-    if (mrb_smap_get(*iv_ptr, sym, NULL)) {
+    mrb_smap_iter it = mrb_smap_get(*iv_ptr, sym);
+    if (!mrb_smap_it_null_p(it)) {
       mrb_check_frozen(mrb, c);
-      mrb_smap_set(mrb, iv_ptr, sym, v);
+      mrb_smap_it_set_value(it, v);
       mrb_field_write_barrier_value(mrb, (struct RBasic*)c, v);
       return;
     }
@@ -462,7 +457,7 @@ mrb_bool
 mrb_mod_cv_defined(mrb_state *mrb, struct RClass * c, mrb_sym sym)
 {
   do {
-    if (mrb_smap_get(*class_iv_ptr(c), sym, NULL)) return TRUE;
+    if (mrb_smap_include_p(*class_iv_ptr(c), sym)) return TRUE;
   } while ((c = c->super));
 
   return FALSE;
@@ -521,13 +516,12 @@ static mrb_value
 const_get(mrb_state *mrb, struct RClass *base, mrb_sym sym)
 {
   struct RClass *c = base;
-  mrb_value v;
   mrb_bool retry = FALSE;
-  mrb_value name;
+  mrb_value v, name;
 
 L_RETRY:
   do {
-    if (mrb_smap_get(*class_iv_ptr(c), sym, &v)) return v;
+    if (mrb_smap_get2(*class_iv_ptr(c), sym, &v)) return v;
   } while ((c = c->super));
   if (!retry && base->tt == MRB_TT_MODULE) {
     c = mrb->object_class;
@@ -555,14 +549,11 @@ mrb_vm_const_get(mrb_state *mrb, mrb_sym sym)
 
   c = MRB_PROC_TARGET_CLASS(mrb->c->ci->proc);
   if (!c) c = mrb->object_class;
-  if (mrb_smap_get(c->iv, sym, &v)) {
-    return v;
-  }
+  if (mrb_smap_get2(c->iv, sym, &v)) return v;
   c2 = c;
   while (c2 && c2->tt == MRB_TT_SCLASS) {
     mrb_value klass;
-
-    if (!mrb_smap_get(c2->iv, MRB_SYM(__attached__), &klass)) {
+    if (!mrb_smap_get2(c2->iv, MRB_SYM(__attached__), &klass)) {
       c2 = NULL;
       break;
     }
@@ -573,9 +564,7 @@ mrb_vm_const_get(mrb_state *mrb, mrb_sym sym)
   proc = mrb->c->ci->proc;
   while (proc) {
     c2 = MRB_PROC_TARGET_CLASS(proc);
-    if (c2 && mrb_smap_get(c2->iv, sym, &v)) {
-      return v;
-    }
+    if (c2 && mrb_smap_get2(c2->iv, sym, &v)) return v;
     proc = proc->upper;
   }
   return const_get(mrb, c, sym);
@@ -665,10 +654,10 @@ mrb_mod_constants(mrb_state *mrb, mrb_value mod)
 
   mrb_get_args(mrb, "|b", &inherit);
   ary = mrb_ary_new(mrb);
-  mrb_smap_each(mrb, c->iv, const_i, &ary);
+  mrb_smap_each_pair(mrb, c->iv, const_i, &ary);
   if (inherit) {
     while ((c = c->super) && c != mrb->object_class) {
-      mrb_smap_each(mrb, *class_iv_ptr(c), const_i, &ary);
+      mrb_smap_each_pair(mrb, *class_iv_ptr(c), const_i, &ary);
     }
   }
   return ary;
@@ -678,10 +667,7 @@ MRB_API mrb_value
 mrb_gv_get(mrb_state *mrb, mrb_sym sym)
 {
   mrb_value v;
-
-  if (mrb_smap_get(mrb->globals, sym, &v))
-    return v;
-  return mrb_nil_value();
+  return mrb_smap_get2(mrb->globals, sym, &v) ? v : mrb_nil_value();
 }
 
 MRB_API void
@@ -693,7 +679,7 @@ mrb_gv_set(mrb_state *mrb, mrb_sym sym, mrb_value v)
 MRB_API void
 mrb_gv_remove(mrb_state *mrb, mrb_sym sym)
 {
-  mrb_smap_delete(mrb, &mrb->globals, sym, NULL);
+  mrb_smap_delete(mrb, &mrb->globals, sym);
 }
 
 static int
@@ -720,7 +706,7 @@ mrb_value
 mrb_f_global_variables(mrb_state *mrb, mrb_value self)
 {
   mrb_value ary = mrb_ary_new(mrb);
-  mrb_smap_each(mrb, mrb->globals, gv_i, &ary);
+  mrb_smap_each_pair(mrb, mrb->globals, gv_i, &ary);
   return ary;
 }
 
@@ -733,10 +719,10 @@ mrb_const_defined_0(mrb_state *mrb, mrb_value mod, mrb_sym id, mrb_bool exclude,
 
   tmp = klass;
 retry:
-  if (mrb_smap_get(tmp->iv, id, NULL)) return TRUE;
+  if (mrb_smap_include_p(tmp->iv, id)) return TRUE;
   if (recurse || klass == mrb->object_class) {
     while ((tmp = tmp->super)) {
-      if (mrb_smap_get(*class_iv_ptr(tmp), id, NULL)) return TRUE;
+      if (mrb_smap_include_p(*class_iv_ptr(tmp), id)) return TRUE;
     }
   }
   if (!exclude && !mod_retry && (klass->tt == MRB_TT_MODULE)) {
@@ -792,7 +778,7 @@ find_class_sym(mrb_state *mrb, struct RClass *outer, struct RClass *c)
   if (outer == c) return 0;
   arg.c = c;
   arg.sym = 0;
-  mrb_smap_each(mrb, outer->iv, csym_i, &arg);
+  mrb_smap_each_pair(mrb, outer->iv, csym_i, &arg);
   return arg.sym;
 }
 
@@ -851,7 +837,7 @@ mrb_class_find_path(mrb_state *mrb, struct RClass *c)
   str = mrb_sym_name_len(mrb, name, &len);
   mrb_str_cat(mrb, path, str, len);
   if (RSTRING_PTR(path)[0] != '#') {
-    mrb_smap_delete(mrb, &c->iv, MRB_SYM(__outer__), NULL);
+    mrb_smap_delete(mrb, &c->iv, MRB_SYM(__outer__));
     mrb_smap_set(mrb, &c->iv, MRB_SYM(__classname__), path);
     mrb_field_write_barrier_value(mrb, (struct RBasic*)c, path);
     path = mrb_str_dup(mrb, path);

@@ -44,14 +44,15 @@ mt_put(mrb_state *mrb, mt_tbl *mt, mrb_sym sym, mrb_method_t m)
 static mrb_bool
 mt_get(const mt_tbl *mt, mrb_sym sym, mrb_method_t *mp)
 {
-  return mrb_smap_get(mt->smap, sym, mp);
+  return mrb_smap_get2(mt->smap, sym, mp);
 }
 
 /* Deletes the value for the symbol from the method table. */
 static mrb_bool
 mt_del(mrb_state *mrb, mt_tbl *mt, mrb_sym sym)
 {
-  return mrb_smap_delete(mrb, &mt->smap, sym, NULL);
+  mrb_method_t m;
+  return mrb_smap_delete2(mrb, &mt->smap, sym, &m);
 }
 
 /* Copy the method table. */
@@ -75,7 +76,7 @@ mt_free(mrb_state *mrb, mt_tbl *mt)
 MRB_API void
 mrb_mt_foreach(mrb_state *mrb, struct RClass *c, mrb_mt_foreach_func *fn, void *p)
 {
-  if (c->mt) mrb_smap_each(mrb, c->mt->smap, fn, p);
+  if (c->mt) mrb_smap_each_pair(mrb, c->mt->smap, fn, p);
 }
 
 static int
@@ -88,7 +89,7 @@ gc_mark_mt_i(mrb_state *mrb, mrb_sym sym, mrb_method_t m, void *p)
 void
 mrb_gc_mark_mt(mrb_state *mrb, struct RClass *c)
 {
-  if (c->mt) mrb_smap_each(mrb, c->mt->smap, gc_mark_mt_i, NULL);
+  if (c->mt) mrb_smap_each_pair(mrb, c->mt->smap, gc_mark_mt_i, NULL);
 }
 
 size_t

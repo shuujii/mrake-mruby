@@ -2,19 +2,17 @@
 #define MRUBY_SMAP_H
 
 /*
- * Map implementation `mrb_sym` to `mrb_value`
+ * thash based `mrb_sym` to `mrb_value` map
  */
 
-typedef struct mrb_smap mrb_smap;
-typedef int (mrb_smap_each_func)(mrb_state *, mrb_sym, mrb_value, void *);
+#include <mruby/thash.h>
 
-size_t mrb_smap_memsize(const mrb_smap *t);
-uint16_t mrb_smap_size(const mrb_smap *t);
-void mrb_smap_set(mrb_state *mrb, mrb_smap **tp, mrb_sym sym, mrb_value val);
-mrb_bool mrb_smap_get(const mrb_smap *t, mrb_sym sym, mrb_value *valp);
-mrb_bool mrb_smap_delete(mrb_state *mrb, mrb_smap **tp, mrb_sym sym, mrb_value *valp);
-void mrb_smap_each(mrb_state *mrb, mrb_smap *t, mrb_smap_each_func *func, void *data);
-mrb_smap *mrb_smap_copy(mrb_state *mrb, const mrb_smap *t);
-void mrb_smap_free(mrb_state *mrb, mrb_smap *t);
+MRB_TMAP_DECLARE(mrb_smap, mrb_sym, mrb_value)
+
+typedef int (mrb_smap_each_pair_func)(mrb_state *, mrb_sym, mrb_value, void *);
+
+mrb_bool mrb_smap_get2(const mrb_smap *t, mrb_sym sym, mrb_value *valp);
+mrb_bool mrb_smap_delete2(mrb_state *mrb, mrb_smap **tp, mrb_sym sym, mrb_value *valp);
+void mrb_smap_each_pair(mrb_state *mrb, mrb_smap *t, mrb_smap_each_pair_func *func, void *data);
 
 #endif  /* MRUBY_SMAP_H */

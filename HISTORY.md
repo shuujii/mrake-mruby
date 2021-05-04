@@ -13,7 +13,8 @@
 * Reduce memory usage of method tables (98afff68)
 * Improve `File.expand_path` performance (a94bbe12)
 * Add some utility methods for test (fc3e8bf5)
-* Improve `File.extname` performance (FIXME)
+* Improve `File.extname` performance (0a73dfbe)
+* Introduce tiny hash table based map/set template based on smap (FIXME)
 
 ### Backwards Compatibility
 
