@@ -6,9 +6,10 @@
 
 #define sym_active_p(sym) ((sym) < SMAP_DELETED_SYM)
 #define sym_hash_code(sym) (uint32_t)((sym) ^ ((sym) << 2) ^ ((sym) >> 2))
+#define sym_equal_p(sym1, sym2) ((sym1) == (sym2))
 
 MRB_TMAP_DEFINE(mrb_smap, mrb_sym, mrb_value, SMAP_EMPTY_SYM, SMAP_DELETED_SYM,
-                sym_active_p, sym_hash_code)
+                sym_active_p, sym_hash_code, sym_equal_p)
 
 typedef struct {
   mrb_smap_each_pair_func *func;

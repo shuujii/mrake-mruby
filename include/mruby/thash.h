@@ -18,9 +18,9 @@
 #define MRB_TSET_DECLARE(name_, K)                                            \
   _MRB_THASH_DECLARE(name_, K, struct{})
 #define MRB_TMAP_DEFINE(name_, K, V, empty_key_, deleted_key_,                \
-                        active_key_p_func_, hash_func_)                       \
+                        active_key_p_func_, hash_func_, equal_p_func_)        \
   _MRB_THASH_DEFINE(name_, K, V, empty_key_, deleted_key_,                    \
-                    active_key_p_func_, hash_func_)                           \
+                    active_key_p_func_, hash_func_, equal_p_func_)            \
   /* Set the value for the key in the map. Note that `*tp` may change. */     \
   void                                                                        \
   name_##_set(mrb_state *mrb, name_ **tp, K key, V val)                       \
@@ -29,19 +29,19 @@
     name_##_it_set_value(it, val);                                            \
   }
 #define MRB_TSET_DEFINE(name_, K, empty_key_, deleted_key_,                   \
-                        active_key_p_func_, hash_func_)                       \
+                        active_key_p_func_, hash_func_, equal_p_func_)        \
   _MRB_THASH_DEFINE(name_, K, struct{}, empty_key_, deleted_key_,             \
-                    active_key_p_func_, hash_func_)
+                    active_key_p_func_, hash_func_, equal_p_func_)
 #define MRB_TMAP_INIT(name_, K, V, empty_key_, deleted_key_,                  \
-                      active_key_p_func_, hash_func_)                         \
+                      active_key_p_func_, hash_func_, equal_p_func_)          \
   MRB_TMAP_DECLARE(name_, K, V)                                               \
   MRB_TMAP_DEFINE(name_, K, V, empty_key_, deleted_key_,                      \
-                  active_key_p_func_, hash_func_)
+                  active_key_p_func_, hash_func_, equal_p_func_)
 #define MRB_TSET_INIT(name_, K, empty_key_, deleted_key_,                     \
-                      active_key_p_func_, hash_func_)                         \
+                      active_key_p_func_, hash_func_, equal_p_func_)          \
   MRB_TSET_DECLARE(name_, K)                                                  \
   MRB_TSET_DEFINE(name_, K, empty_key_, deleted_key_,                         \
-                  active_key_p_func_, hash_func_)
+                  active_key_p_func_, hash_func_, equal_p_func_)
 
 #define _MRB_THASH_DECLARE(name_, K, V)                                       \
   /*                                                                          \
@@ -145,7 +145,7 @@
   }
 
 #define _MRB_THASH_DEFINE(name_, K, V, empty_key_, deleted_key_,              \
-                          active_key_p_func_, hash_func_)                     \
+                          active_key_p_func_, hash_func_, equal_p_func_)      \
   static const mrb_thash_iter MRB_THASH_NULL_ITER = {0, MRB_THASH_MAX_SIZE};  \
                                                                               \
   static void                                                                 \
@@ -255,7 +255,7 @@
     uint32_t hash_code = hash_func_(key);                                     \
     K *keys = _##name_##_keys(*tp);                                           \
     _mrb_thash_probe(*tp, hash_code, idx, {                                   \
-      if (keys[idx] == key) return MRB_THASH_ITER(*tp, idx);                  \
+      if (equal_p_func_(keys[idx], key)) return MRB_THASH_ITER(*tp, idx);     \
       if (active_key_p_func_(keys[idx])) continue;                            \
       if (size == MRB_THASH_MAX_SIZE) {                                       \
         mrb_raise(mrb, E_ARGUMENT_ERROR, "map too big");                      \
@@ -286,7 +286,7 @@
     if (!t) return MRB_THASH_NULL_ITER;                                       \
     const K *keys = _##name_##_keys((name_ *)t);                              \
     _mrb_thash_probe((name_ *)t, hash_func_(key), idx, {                      \
-      if (keys[idx] == key) return MRB_THASH_ITER(t, idx);                    \
+      if (equal_p_func_(keys[idx], key)) return MRB_THASH_ITER(t, idx);       \
       if (keys[idx] == empty_key_) return MRB_THASH_NULL_ITER;                \
     });                                                                       \
     return MRB_THASH_NULL_ITER;                                               \
