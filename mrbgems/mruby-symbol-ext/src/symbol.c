@@ -1,15 +1,14 @@
 #include <mruby.h>
 #include <mruby/array.h>
 #include <mruby/string.h>
-#ifdef MRB_USE_ALL_SYMBOLS
-# include <mruby/presym.h>
-#endif
+#include <mruby/presym.h>
 
 /*
  *  call-seq:
  *     Symbol.all_symbols    => array
  *
- *  Returns an array of all the symbols currently in Ruby's symbol
+ *  Returns an array of all the symbols in the symbol table (inline symbols
+ *  are not included)
  *  table.
  *
  *     Symbol.all_symbols.size    #=> 903
@@ -20,7 +19,6 @@
  *                                     :Tms, :getwd, :$=, :ThreadGroup,
  *                                     :wait2, :$>]
  */
-#ifdef MRB_USE_ALL_SYMBOLS
 static mrb_value
 mrb_sym_all_symbols(mrb_state *mrb, mrb_value self)
 {
@@ -36,7 +34,6 @@ mrb_sym_all_symbols(mrb_state *mrb, mrb_value self)
 
   return ary;
 }
-#endif
 
 /*
  * call-seq:
@@ -62,9 +59,7 @@ void
 mrb_mruby_symbol_ext_gem_init(mrb_state* mrb)
 {
   struct RClass *s = mrb->symbol_class;
-#ifdef MRB_USE_ALL_SYMBOLS
   mrb_define_class_method(mrb, s, "all_symbols", mrb_sym_all_symbols, MRB_ARGS_NONE());
-#endif
   mrb_define_method(mrb, s, "length", mrb_sym_length, MRB_ARGS_NONE());
   mrb_define_method(mrb, s, "size", mrb_sym_length, MRB_ARGS_NONE());
 }

@@ -69,7 +69,7 @@ sym_validate_len(mrb_state *mrb, size_t len)
   }
 }
 
-#ifdef MRB_USE_ALL_SYMBOLS
+#ifdef MRB_NO_INLINE_SYMBOL
 # define SYMBOL_INLINE_P(sym) FALSE
 # define sym_inline_pack(name, len) 0
 # define sym_inline_unpack(sym, buf, lenp) NULL
@@ -327,7 +327,7 @@ sym2name_len(mrb_state *mrb, mrb_sym sym, char *buf, mrb_int *lenp)
 MRB_API const char*
 mrb_sym_name_len(mrb_state *mrb, mrb_sym sym, mrb_int *lenp)
 {
-#ifdef MRB_USE_ALL_SYMBOLS
+#ifdef MRB_NO_INLINE_SYMBOL
   return sym2name_len(mrb, sym, NULL, lenp);
 #else
   return sym2name_len(mrb, sym, mrb->symbuf, lenp);

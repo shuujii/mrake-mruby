@@ -268,7 +268,7 @@ typedef struct mrb_state {
   struct symbol_name *symtbl;   /* symbol table */
   mrb_sym symhash[256];
   size_t symcapa;
-#ifndef MRB_USE_ALL_SYMBOLS
+#ifndef MRB_NO_INLINE_SYMBOL
   char symbuf[8];               /* buffer for small symbol names */
 #endif
 

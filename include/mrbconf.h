@@ -147,10 +147,10 @@
 
 /* -DMRB_NO_XXXX to drop following features */
 //#define MRB_NO_STDIO /* use of stdio */
+//#define MRB_NO_INLINE_SYMBOL /* use of inline symbol */
 
 /* -DMRB_USE_XXXX to enable following features */
 //#define MRB_USE_DEBUG_HOOK /* hooks for debugger */
-//#define MRB_USE_ALL_SYMBOLS /* Symbol.all_symbols */
 
 /* obsolete configurations */
 #ifdef MRB_METHOD_T_STRUCT
@@ -164,9 +164,6 @@
 #endif
 #if defined(ENABLE_DEBUG) || defined(MRB_ENABLE_DEBUG_HOOK)
 # define MRB_USE_DEBUG_HOOK
-#endif
-#ifdef MRB_ENABLE_ALL_SYMBOLS
-# define MRB_USE_ALL_SYMBOLS
 #endif
 #ifdef MRB_ENABLE_CXX_ABI
 # define MRB_USE_CXX_ABI

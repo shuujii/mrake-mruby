@@ -202,7 +202,7 @@ largest value of required alignment.
 * No `MRB_USE_METHOD_T_STRUCT` requires highest 2 bits of function pointers to be zero
 * Define this macro on machines that use higher bits of pointers
 
-`MRB_USE_ALL_SYMBOLS`
+`MRB_NO_INLINE_SYMBOL`
 
-* Make it available `Symbol.all_symbols` in `mrbgems/mruby-symbol-ext`
+* Disable inline symbol.
 * Increase heap memory usage.
