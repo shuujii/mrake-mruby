@@ -87,59 +87,59 @@
   name_ *name_##_copy(mrb_state *mrb, const name_ *t);                        \
   void name_##_free(mrb_state *mrb, name_ *t);                                \
                                                                               \
-  MRB_INLINE uint16_t                                                         \
+  MRB_INLINE mrb_unused uint16_t                                              \
   _mrb_thash_size(const name_ *t)                                             \
   {                                                                           \
     return t->size;                                                           \
   }                                                                           \
                                                                               \
-  MRB_INLINE uint32_t                                                         \
+  MRB_INLINE mrb_unused uint32_t                                              \
   _mrb_thash_capa(const mrb_thash *t)                                         \
   {                                                                           \
     return (uint32_t)t->capa_1 + 1;                                           \
   }                                                                           \
                                                                               \
-  MRB_INLINE size_t                                                           \
+  MRB_INLINE mrb_unused size_t                                                \
   _##name_##_offset_for(uint32_t capa)                                        \
   {                                                                           \
     return (sizeof(V) + sizeof(K)) * capa;                                    \
   }                                                                           \
                                                                               \
-  MRB_INLINE K *                                                              \
+  MRB_INLINE mrb_unused K *                                                   \
   _##name_##_keys(name_ *t)                                                   \
   {                                                                           \
     return (K *)((char *)(t) - sizeof(K) * _mrb_thash_capa(t));               \
   }                                                                           \
                                                                               \
-  MRB_INLINE V *                                                              \
+  MRB_INLINE mrb_unused V *                                                   \
   _##name_##_values(name_ *t)                                                 \
   {                                                                           \
     return (V *)((char *)(t) - _##name_##_offset_for(_mrb_thash_capa(t)));    \
   }                                                                           \
                                                                               \
   /* Return true if the iterator is the null iterator. */                     \
-  MRB_INLINE mrb_bool                                                         \
+  MRB_INLINE mrb_unused mrb_bool                                              \
   name_##_it_null_p(const name_##_iter it)                                    \
   {                                                                           \
     return it.t == NULL;                                                      \
   }                                                                           \
                                                                               \
   /* Get the key for the iterator. */                                         \
-  MRB_INLINE K                                                                \
+  MRB_INLINE mrb_unused K                                                     \
   name_##_it_key(const name_##_iter it)                                       \
   {                                                                           \
     return _##name_##_keys(it.t)[it.idx];                                     \
   }                                                                           \
                                                                               \
   /* Get the value for the iterator. */                                       \
-  MRB_INLINE V                                                                \
+  MRB_INLINE mrb_unused V                                                     \
   name_##_it_value(const name_##_iter it)                                     \
   {                                                                           \
     return _##name_##_values(it.t)[it.idx];                                   \
   }                                                                           \
                                                                               \
   /* Set the value for the iterator. */                                       \
-  MRB_INLINE void                                                             \
+  MRB_INLINE mrb_unused void                                                  \
   name_##_it_set_value(name_##_iter it, V val)                                \
   {                                                                           \
     _##name_##_values(it.t)[it.idx] = val;                                    \

@@ -53,6 +53,9 @@ MRB_BEGIN_DECL
 # define mrb_deprecated
 #endif
 
+/** Prevent unused variable/function warnings. */
+#define mrb_unused __attribute__((unused))
+
 /** Declare a function as always inlined. */
 #if defined _MSC_VER && _MSC_VER < 1900
 # ifndef __cplusplus

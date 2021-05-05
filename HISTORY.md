@@ -7,6 +7,7 @@
 * Add `MRBC_CONTEXT_INITIALIZER` and `mrbc_context_finalize` (8cdb7d0e)
 * Add some utility methods for test (fc3e8bf5)
 * Introduce tiny hash table based map/set template based on smap (ef781a0a)
+* Add `mrb_unused` (FIXME)
 
 ### Other Improvements
 
