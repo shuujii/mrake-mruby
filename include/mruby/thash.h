@@ -256,14 +256,15 @@
     uint32_t hash_code = hash_func_(key);                                     \
     K *keys = _##name_##_keys(*tp);                                           \
     _mrb_thash_probe(*tp, hash_code, idx, {                                   \
-      if (equal_p_func_(keys[idx], key)) return MRB_THASH_ITER(*tp, idx);     \
-      if (active_key_p_func_(keys[idx])) continue;                            \
-      if (size == MRB_THASH_MAX_SIZE) {                                       \
+      if (active_key_p_func_(keys[idx])) {                                    \
+        if (equal_p_func_(key, keys[idx])) return MRB_THASH_ITER(*tp, idx);   \
+      } else if (size == MRB_THASH_MAX_SIZE) {                                \
         mrb_raise(mrb, E_ARGUMENT_ERROR, "map too big");                      \
-      }                                                                       \
-      keys[idx] = key;                                                        \
-      _mrb_thash_set_size(*tp, ++size);                                       \
-      return MRB_THASH_ITER(*tp, idx);                                        \
+      } else {                                                                \
+        keys[idx] = key;                                                      \
+        _mrb_thash_set_size(*tp, ++size);                                     \
+        return MRB_THASH_ITER(*tp, idx);                                      \
+       }                                                                      \
     });                                                                       \
     _##name_##_expand(mrb, tp);                                               \
     keys = _##name_##_keys(*tp);                                              \
@@ -287,8 +288,9 @@
     if (!t) return MRB_THASH_NULL_ITER;                                       \
     const K *keys = _##name_##_keys((name_ *)t);                              \
     _mrb_thash_probe((name_ *)t, hash_func_(key), idx, {                      \
-      if (equal_p_func_(keys[idx], key)) return MRB_THASH_ITER(t, idx);       \
       if (keys[idx] == empty_key_) return MRB_THASH_NULL_ITER;                \
+      if (keys[idx] == deleted_key_) continue;                                \
+      if (equal_p_func_(key, keys[idx])) return MRB_THASH_ITER(t, idx);       \
     });                                                                       \
     return MRB_THASH_NULL_ITER;                                               \
   }                                                                           \
