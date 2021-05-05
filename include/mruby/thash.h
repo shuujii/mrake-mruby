@@ -32,6 +32,16 @@
                         active_key_p_func_, hash_func_)                       \
   _MRB_THASH_DEFINE(name_, K, struct{}, empty_key_, deleted_key_,             \
                     active_key_p_func_, hash_func_)
+#define MRB_TMAP_INIT(name_, K, V, empty_key_, deleted_key_,                  \
+                      active_key_p_func_, hash_func_)                         \
+  MRB_TMAP_DECLARE(name_, K, V)                                               \
+  MRB_TMAP_DEFINE(name_, K, V, empty_key_, deleted_key_,                      \
+                  active_key_p_func_, hash_func_)
+#define MRB_TSET_INIT(name_, K, empty_key_, deleted_key_,                     \
+                      active_key_p_func_, hash_func_)                         \
+  MRB_TSET_DECLARE(name_, K)                                                  \
+  MRB_TSET_DEFINE(name_, K, empty_key_, deleted_key_,                         \
+                  active_key_p_func_, hash_func_)
 
 #define _MRB_THASH_DECLARE(name_, K, V)                                       \
   /*                                                                          \
