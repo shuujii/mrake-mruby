@@ -15,7 +15,7 @@
 * Reduce memory usage of method tables (98afff68)
 * Improve `File.expand_path` performance (a94bbe12)
 * Improve `File.extname` performance (0a73dfbe)
-* Avoid making filename duplicates in `mrbc_filename` (FIXME)
+* Avoid making filename duplicates in `mrbc_filename` (39ec249a)
 
 ### Backwards Compatibility
 
