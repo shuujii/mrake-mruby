@@ -13050,7 +13050,6 @@ mrb_parser_free(parser_state *p) {
 MRB_API void
 mrbc_context_finalize(mrb_state *mrb, mrbc_context *cxt)
 {
-  mrb_free(mrb, cxt->filename);
   mrb_free(mrb, cxt->syms);
 }
 
@@ -13070,17 +13069,7 @@ mrbc_context_free(mrb_state *mrb, mrbc_context *cxt)
 MRB_API const char*
 mrbc_filename(mrb_state *mrb, mrbc_context *c, const char *s)
 {
-  if (s) {
-    size_t len = strlen(s);
-    char *p = (char *)mrb_malloc(mrb, len + 1);
-
-    memcpy(p, s, len + 1);
-    if (c->filename) {
-      mrb_free(mrb, c->filename);
-    }
-    c->filename = p;
-  }
-  return c->filename;
+  return c->filename = s;
 }
 
 MRB_API void

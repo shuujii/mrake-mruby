@@ -15,6 +15,7 @@
 * Reduce memory usage of method tables (98afff68)
 * Improve `File.expand_path` performance (a94bbe12)
 * Improve `File.extname` performance (0a73dfbe)
+* Avoid making filename duplicates in `mrbc_filename` (FIXME)
 
 ### Backwards Compatibility
 
@@ -22,7 +23,7 @@
 * Drop support for Windows (58c8c396)
 * Exclude files in `fixtures` directories for test ruby files (c98ff54d)
 * Rename `Mrbtest` to `MRubyTest` and separate file to `mruby_test.c` (4fc81344)
-* Introduce `MRB_NO_INLINE_SYMBOL` instead of `MRB_USE_ALL_SYMBOLS` (FIXME)
+* Introduce `MRB_NO_INLINE_SYMBOL` instead of `MRB_USE_ALL_SYMBOLS` (dab56aef)
 
 ### Bug Fixes
 

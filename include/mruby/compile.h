@@ -23,7 +23,7 @@ struct mrb_parser_state;
 typedef struct mrbc_context {
   mrb_sym *syms;
   int slen;
-  char *filename;
+  const char *filename;
   uint16_t lineno;
   int (*partial_hook)(struct mrb_parser_state*);
   void *partial_data;
