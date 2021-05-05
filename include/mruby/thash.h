@@ -16,12 +16,13 @@
   _MRB_THASH_DECLARE(name_, K, V)                                             \
   void name_##_set(mrb_state *mrb, name_ **tp, K key, V val);
 #define MRB_TSET_DECLARE(name_, K)                                            \
-  _MRB_THASH_DECLARE(name_, K, struct{})
+  typedef struct {} mrb_tset_value;                                           \
+  _MRB_THASH_DECLARE(name_, K, mrb_tset_value)
 #define MRB_TMAP_DEFINE(name_, K, V, empty_key_, deleted_key_,                \
                         active_key_p_func_, hash_func_, equal_p_func_)        \
   _MRB_THASH_DEFINE(name_, K, V, empty_key_, deleted_key_,                    \
                     active_key_p_func_, hash_func_, equal_p_func_)            \
-  /* Set the value for the key in the map. Note that `*tp` may change. */     \
+  /* Set the value for the key to the map. Note that `*tp` may change. */     \
   void                                                                        \
   name_##_set(mrb_state *mrb, name_ **tp, K key, V val)                       \
   {                                                                           \
@@ -30,7 +31,7 @@
   }
 #define MRB_TSET_DEFINE(name_, K, empty_key_, deleted_key_,                   \
                         active_key_p_func_, hash_func_, equal_p_func_)        \
-  _MRB_THASH_DEFINE(name_, K, struct{}, empty_key_, deleted_key_,             \
+  _MRB_THASH_DEFINE(name_, K, mrb_tset_value, empty_key_, deleted_key_,       \
                     active_key_p_func_, hash_func_, equal_p_func_)
 #define MRB_TMAP_INIT(name_, K, V, empty_key_, deleted_key_,                  \
                       active_key_p_func_, hash_func_, equal_p_func_)          \
