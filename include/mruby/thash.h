@@ -16,8 +16,7 @@
   _MRB_THASH_DECLARE(name_, K, V)                                             \
   void name_##_set(mrb_state *mrb, name_ **tp, K key, V val);
 #define MRB_TSET_DECLARE(name_, K)                                            \
-  typedef struct {} mrb_tset_value;                                           \
-  _MRB_THASH_DECLARE(name_, K, mrb_tset_value)
+  _MRB_THASH_DECLARE(name_, K, mrb_tset_pseudo_value)
 #define MRB_TMAP_DEFINE(name_, K, V, empty_key_, deleted_key_,                \
                         active_key_p_func_, hash_func_, equal_p_func_)        \
   _MRB_THASH_DEFINE(name_, K, V, empty_key_, deleted_key_,                    \
@@ -31,7 +30,7 @@
   }
 #define MRB_TSET_DEFINE(name_, K, empty_key_, deleted_key_,                   \
                         active_key_p_func_, hash_func_, equal_p_func_)        \
-  _MRB_THASH_DEFINE(name_, K, mrb_tset_value, empty_key_, deleted_key_,       \
+  _MRB_THASH_DEFINE(name_, K, mrb_tset_pseudo_value, empty_key_, deleted_key_,\
                     active_key_p_func_, hash_func_, equal_p_func_)
 #define MRB_TMAP_INIT(name_, K, V, empty_key_, deleted_key_,                  \
                       active_key_p_func_, hash_func_, equal_p_func_)          \
@@ -73,9 +72,6 @@
                                                                               \
   typedef int (name_##_each_func)(mrb_state *, name_##_iter, void *);         \
                                                                               \
-  typedef name_ mrb_thash;                                                    \
-  typedef name_##_iter mrb_thash_iter;                                        \
-                                                                              \
   size_t name_##_memsize(const name_ *t);                                     \
   uint16_t name_##_size(const name_ *t);                                      \
   mrb_bool name_##_include_p(const name_ *t, K key);                          \
@@ -88,15 +84,15 @@
   void name_##_free(mrb_state *mrb, name_ *t);                                \
                                                                               \
   MRB_INLINE mrb_unused uint16_t                                              \
-  _mrb_thash_size(const name_ *t)                                             \
+  _##name_##_size(const name_ *t)                                             \
   {                                                                           \
-    return t->size;                                                           \
+    return _mrb_thash_size(t);                                                \
   }                                                                           \
                                                                               \
   MRB_INLINE mrb_unused uint32_t                                              \
-  _mrb_thash_capa(const mrb_thash *t)                                         \
+  _##name_##_capa(const name_ *t)                                             \
   {                                                                           \
-    return (uint32_t)t->capa_1 + 1;                                           \
+    return _mrb_thash_capa(t);                                                \
   }                                                                           \
                                                                               \
   MRB_INLINE mrb_unused size_t                                                \
@@ -108,13 +104,28 @@
   MRB_INLINE mrb_unused K *                                                   \
   _##name_##_keys(name_ *t)                                                   \
   {                                                                           \
-    return (K *)((char *)(t) - sizeof(K) * _mrb_thash_capa(t));               \
+    return (K *)((char *)(t) - sizeof(K) * _##name_##_capa(t));               \
   }                                                                           \
                                                                               \
   MRB_INLINE mrb_unused V *                                                   \
   _##name_##_values(name_ *t)                                                 \
   {                                                                           \
-    return (V *)((char *)(t) - _##name_##_offset_for(_mrb_thash_capa(t)));    \
+    return (V *)((char *)(t) - _##name_##_offset_for(_##name_##_capa(t)));    \
+  }                                                                           \
+                                                                              \
+  MRB_INLINE mrb_unused name_##_iter                                          \
+  _##name_##_it(name_ *t, uint16_t idx)                                       \
+  {                                                                           \
+    name_##_iter it;                                                          \
+    it.t = t;                                                                 \
+    it.idx = idx;                                                             \
+    return it;                                                                \
+  }                                                                           \
+                                                                              \
+  MRB_INLINE mrb_unused name_##_iter                                          \
+  _##name_##_it_null(void)                                                    \
+  {                                                                           \
+    return _##name_##_it(NULL, MRB_THASH_MAX_SIZE);                           \
   }                                                                           \
                                                                               \
   /* Return true if the iterator is the null iterator. */                     \
@@ -147,18 +158,16 @@
 
 #define _MRB_THASH_DEFINE(name_, K, V, empty_key_, deleted_key_,              \
                           active_key_p_func_, hash_func_, equal_p_func_)      \
-  static const mrb_thash_iter MRB_THASH_NULL_ITER = {0, MRB_THASH_MAX_SIZE};  \
-                                                                              \
   static void                                                                 \
-  _mrb_thash_set_size(name_ *t, uint16_t size)                                \
+  _##name_##_set_size(name_ *t, uint16_t size)                                \
   {                                                                           \
-    t->size = size;                                                           \
+    _mrb_thash_set_size(t, size);                                             \
   }                                                                           \
                                                                               \
   static void                                                                 \
-  _mrb_thash_set_capa(name_ *t, uint32_t capa)                                \
+  _##name_##_set_capa(name_ *t, uint32_t capa)                                \
   {                                                                           \
-    t->capa_1 = (uint16_t)(capa - 1);                                         \
+    _mrb_thash_set_capa(t, capa);                                             \
   }                                                                           \
                                                                               \
   static void                                                                 \
@@ -185,8 +194,8 @@
     size_t memsize = _##name_##_memsize_for(capa);                            \
     size_t offset = _##name_##_offset_for(capa);                              \
     name_ *t = (name_ *)((char *)mrb_malloc(mrb, memsize) + offset);          \
-    _mrb_thash_set_size(t, 0);                                                \
-    _mrb_thash_set_capa(t, capa);                                             \
+    _##name_##_set_size(t, 0);                                                \
+    _##name_##_set_capa(t, capa);                                             \
     for (K *kp = _##name_##_keys(t); kp != (K *)t; ++kp) *kp = empty_key_;    \
     return t;                                                                 \
   }                                                                           \
@@ -194,20 +203,20 @@
   static void                                                                 \
   _##name_##_free(mrb_state *mrb, name_ *t)                                   \
   {                                                                           \
-    mrb_free(mrb, (char *)(t) - _##name_##_offset_for(_mrb_thash_capa(t)));   \
+    mrb_free(mrb, (char *)(t) - _##name_##_offset_for(_##name_##_capa(t)));   \
   }                                                                           \
                                                                               \
   static void                                                                 \
   _##name_##_expand(mrb_state *mrb, name_ **tp)                               \
   {                                                                           \
     name_ *t = *tp;                                                           \
-    uint16_t size = _mrb_thash_size(t);                                       \
-    uint32_t new_capa = _mrb_thash_capa(t) * 2;                               \
-    mrb_assert(_mrb_thash_capa(t) < MRB_THASH_MAX_CAPA);                      \
-    mrb_assert(_mrb_thash_capa(t) == size);                                   \
+    uint16_t size = _##name_##_size(t);                                       \
+    uint32_t new_capa = _##name_##_capa(t) * 2;                               \
+    mrb_assert(_##name_##_capa(t) < MRB_THASH_MAX_CAPA);                      \
+    mrb_assert(_##name_##_capa(t) == size);                                   \
     name_ *new_t = _##name_##_new(mrb, new_capa);                             \
-    _mrb_thash_set_size(new_t, size);                                         \
-    _mrb_thash_set_capa(new_t, new_capa);                                     \
+    _##name_##_set_size(new_t, size);                                         \
+    _##name_##_set_capa(new_t, new_capa);                                     \
     K *keys = _##name_##_keys(t), *new_keys = _##name_##_keys(new_t);         \
     V *vals = _##name_##_values(t), *new_vals = _##name_##_values(new_t);     \
     for (uint16_t idx = 0; idx < size; ++idx) {                               \
@@ -227,14 +236,14 @@
   size_t                                                                      \
   name_##_memsize(const name_ *t)                                             \
   {                                                                           \
-    return t ? _##name_##_memsize_for(_mrb_thash_capa(t)) : 0;                \
+    return t ? _##name_##_memsize_for(_##name_##_capa(t)) : 0;                \
   }                                                                           \
                                                                               \
   /* Get the size of the map/set. */                                          \
   uint16_t                                                                    \
   name_##_size(const name_ *t)                                                \
   {                                                                           \
-    return t ? _mrb_thash_size(t) : 0;                                        \
+    return t ? _##name_##_size(t) : 0;                                        \
   }                                                                           \
                                                                               \
   /* Return true if the map/set includes the key */                           \
@@ -252,18 +261,18 @@
   name_##_add(mrb_state *mrb, name_ **tp, K key)                              \
   {                                                                           \
     if (!*tp) *tp = _##name_##_new(mrb, MRB_THASH_INIT_CAPA);                 \
-    uint16_t size = _mrb_thash_size(*tp);                                     \
+    uint16_t size = _##name_##_size(*tp);                                     \
     uint32_t hash_code = hash_func_(key);                                     \
     K *keys = _##name_##_keys(*tp);                                           \
     _mrb_thash_probe(*tp, hash_code, idx, {                                   \
       if (active_key_p_func_(keys[idx])) {                                    \
-        if (equal_p_func_(key, keys[idx])) return MRB_THASH_ITER(*tp, idx);   \
+        if (equal_p_func_(key, keys[idx])) return _##name_##_it(*tp, idx);    \
       } else if (size == MRB_THASH_MAX_SIZE) {                                \
         mrb_raise(mrb, E_ARGUMENT_ERROR, "map too big");                      \
       } else {                                                                \
         keys[idx] = key;                                                      \
-        _mrb_thash_set_size(*tp, ++size);                                     \
-        return MRB_THASH_ITER(*tp, idx);                                      \
+        _##name_##_set_size(*tp, ++size);                                     \
+        return _##name_##_it(*tp, idx);                                       \
        }                                                                      \
     });                                                                       \
     _##name_##_expand(mrb, tp);                                               \
@@ -271,11 +280,11 @@
     _mrb_thash_probe(*tp, hash_code, idx, {                                   \
       if (keys[idx] != empty_key_) continue;                                  \
       keys[idx] = key;                                                        \
-      _mrb_thash_set_size(*tp, ++size);                                       \
-      return MRB_THASH_ITER(*tp, idx);                                        \
+      _##name_##_set_size(*tp, ++size);                                       \
+      return _##name_##_it(*tp, idx);                                         \
     });                                                                       \
     mrb_assert("not reached");                                                \
-    return MRB_THASH_NULL_ITER;                                               \
+    return _##name_##_it_null();                                              \
   }                                                                           \
                                                                               \
   /*                                                                          \
@@ -285,14 +294,15 @@
   name_##_iter                                                                \
   name_##_get(const name_ *t, K key)                                          \
   {                                                                           \
-    if (!t) return MRB_THASH_NULL_ITER;                                       \
+    if (!t) return _##name_##_it_null();                                      \
     const K *keys = _##name_##_keys((name_ *)t);                              \
     _mrb_thash_probe((name_ *)t, hash_func_(key), idx, {                      \
-      if (keys[idx] == empty_key_) return MRB_THASH_NULL_ITER;                \
+      if (keys[idx] == empty_key_) return _##name_##_it_null();               \
       if (keys[idx] == deleted_key_) continue;                                \
-      if (equal_p_func_(key, keys[idx])) return MRB_THASH_ITER(t, idx);       \
+      if (!equal_p_func_(key, keys[idx])) continue;                           \
+      return _##name_##_it((name_ *)t, idx);                                  \
     });                                                                       \
-    return MRB_THASH_NULL_ITER;                                               \
+    return _##name_##_it_null();                                              \
   }                                                                           \
                                                                               \
   /* Deletes the entry for the key from the map/set. */                       \
@@ -309,7 +319,7 @@
   name_##_delete_by_it(mrb_state *mrb, name_ **tp, name_##_iter it)           \
   {                                                                           \
     _##name_##_it_delete(it);                                                 \
-    _mrb_thash_set_size(*tp, _mrb_thash_size(*tp) - 1);                       \
+    _##name_##_set_size(*tp, _##name_##_size(*tp) - 1);                       \
   }                                                                           \
                                                                               \
   /* Iterates over the map/set. Breaks the loop If `func` returns non 0. */   \
@@ -317,7 +327,7 @@
   name_##_each(mrb_state *mrb, name_ *t, name_##_each_func *f, void *d)       \
   {                                                                           \
     uint16_t size;                                                            \
-    if (!t || (size = _mrb_thash_size(t)) == 0) return;                       \
+    if (!t || (size = _##name_##_size(t)) == 0) return;                       \
     K *keys = _##name_##_keys(t);                                             \
     for (uint16_t idx = 0; size; ++idx) {                                     \
       if (!active_key_p_func_(keys[idx])) continue;                           \
@@ -331,7 +341,7 @@
   name_##_copy(mrb_state *mrb, const name_ *t)                                \
   {                                                                           \
     if (!t) return NULL;                                                      \
-    uint32_t capa = _mrb_thash_capa(t);                                       \
+    uint32_t capa = _##name_##_capa(t);                                       \
     size_t offset = _##name_##_offset_for(capa);                              \
     size_t memsize = _##name_##_memsize_for(capa);                            \
     void *p = mrb_malloc(mrb, memsize);                                       \
@@ -349,14 +359,20 @@
 #define MRB_THASH_INIT_CAPA 1
 #define MRB_THASH_MAX_CAPA ((uint32_t)UINT16_MAX + 1)
 #define MRB_THASH_MAX_SIZE UINT16_MAX
-#define MRB_THASH_ITER(t, idx) (mrb_thash_iter){(mrb_thash *)(t), idx}
+
+#define _mrb_thash_size(t) ((t)->size)
+#define _mrb_thash_set_size(t, size) ((t)->size = size)
+#define _mrb_thash_capa(t) ((uint32_t)(t)->capa_1 + 1)
+#define _mrb_thash_set_capa(t, capa) ((t)->capa_1 = (uint16_t)((capa) - 1))
 
 #define _mrb_thash_probe(t, hash_code, idx_var, code) do {                    \
   uint32_t capa__ = _mrb_thash_capa(t);                                       \
   uint16_t idx_var = (hash_code) & (t)->capa_1;                               \
-  for (; capa__; (idx_var = (idx_var + 1) & (t)->capa_1), --capa__) {         \
+  for (; capa__--; idx_var = (idx_var + 1) & (t)->capa_1) {                   \
     code;                                                                     \
   }                                                                           \
 } while (0)
+
+typedef struct {} mrb_tset_pseudo_value;
 
 #endif  /* MRUBY_THASH_H */
