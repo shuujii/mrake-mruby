@@ -35,10 +35,9 @@ mrb_pathz_absolute_p(const char *path)
 MRB_INLINE mrb_bool
 mrb_pathz_implicit_relative_p(const char *path)
 {
-  if (path[0] == '~') return FALSE;
-  if (mrb_pathz_absolute_p(path)) return FALSE;
-  if (mrb_pathz_explicit_relative_p(path)) return FALSE;
-  return TRUE;
+  return path[0] != '~'
+         && !mrb_pathz_absolute_p(path)
+         && !mrb_pathz_explicit_relative_p(path);
 }
 
 MRB_END_DECL
