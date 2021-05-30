@@ -23,18 +23,3 @@ MRuby::Build.new do |conf|
   conf.enable_bintest
   conf.enable_test
 end
-
-MRuby::Build.new('cxx_abi') do |conf|
-  conf.toolchain
-
-  conf.gembox 'full-core'
-  conf.cc.flags += %w(-fpermissive)
-  conf.compilers.each do |c|
-    c.defines += %w(MRB_GC_FIXED_ARENA)
-  end
-  conf.enable_test
-
-  conf.enable_cxx_abi
-
-  conf.build_mrbc_exec
-end
