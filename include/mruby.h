@@ -283,10 +283,16 @@ typedef struct mrb_state {
 
   struct RClass *eException_class;
   struct RClass *eStandardError_class;
-  struct RObject *nomem_err;              /* pre-allocated NoMemoryError */
-  struct RObject *stack_err;              /* pre-allocated SysStackError */
+  struct RObject *nomem_err;            /* pre-allocated NoMemoryError */
+  struct RObject *stack_err;            /* pre-allocated SysStackError */
 #ifdef MRB_GC_FIXED_ARENA
-  struct RObject *arena_err;              /* pre-allocated arena overflow error */
+  struct RObject *arena_err;            /* pre-allocated arena overflow error */
+#endif
+
+#ifdef MRB_USE_REQUIRE
+  struct mrb_strset *required_feature_paths;
+  struct mrb_strset *required_feature_names;
+  void (*required_features_mark)(struct mrb_state *);
 #endif
 
   void *ud; /* auxiliary data */

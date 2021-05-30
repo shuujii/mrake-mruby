@@ -979,6 +979,10 @@ root_scan_phase(mrb_state *mrb, mrb_gc *gc)
   mrb_gc_mark(mrb, (struct RBasic*)mrb->arena_err);
 #endif
 
+#ifdef MRB_USE_REQUIRE
+  if (mrb->required_features_mark) mrb->required_features_mark(mrb);
+#endif
+
   mark_context(mrb, mrb->c);
   if (mrb->root_c != mrb->c) {
     mark_context(mrb, mrb->root_c);
