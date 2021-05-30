@@ -8,7 +8,7 @@
 * Add some utility methods for test (fc3e8bf5)
 * Introduce tiny hash table based map/set template based on smap (ef781a0a)
 * Add `mrb_unused` (0a2003af)
-* Introduce `mruby-require` gem (FIXME)
+* Introduce `mruby-require` gem (db9beffa)
 
 ### Other Improvements
 
