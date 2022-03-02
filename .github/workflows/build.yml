@@ -10,7 +10,7 @@ jobs:
       MRUBY_CONFIG: ci/gcc-clang
       CC: gcc
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Ruby version
         run: ruby -v
       - name: Compiler version
@@ -25,7 +25,7 @@ jobs:
       MRUBY_CONFIG: ci/gcc-clang
       CC: clang
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Ruby version
         run: ruby -v
       - name: Compiler version
@@ -40,7 +40,7 @@ jobs:
       MRUBY_CONFIG: ci/gcc-clang
       CC: clang
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Ruby version
         run: ruby -v
       - name: Compiler version
